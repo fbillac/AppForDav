@@ -238,7 +238,7 @@ const formatNewStatement = (activityVerb, components, replacements) => {
     }
   }
   
-  // Join the parts with commas and "and" following APA style
+  // Join the parts with commas and "and" following proper grammar rules
   if (parts.length === 1) {
     statement += parts[0];
   } else if (parts.length === 2) {
