@@ -36,49 +36,49 @@ const tenthGradeWords = [
   "carrot", "potato", "tomato", "lettuce", "broccoli", "cucumber", "onion", "garlic",
   "chicken", "turkey", "duck", "goose", "cow", "pig", "sheep", "goat",
   "dog", "cat", "rabbit", "hamster", "guinea pig", "turtle", "fish", "bird", "apple", "banana", 
-	"chair", "table", "lamp", "pen", "pencil", "notebook", "book", "phone", "television", "laptop", 
-	"mouse", "keyboard", "monitor", "cup", "glass", "bottle", "plate", "fork", "spoon", "knife", "napkin", 
-	"bed", "pillow", "blanket", "sheet", "towel", "soap", "shampoo", "conditioner", "toothbrush", "toothpaste", 
-	"comb", "brush", "mirror", "clock", "watch", "wallet", "bag", "backpack", "suitcase", "umbrella", "hat", "scarf", 
-	"gloves", "jacket", "shirt", "pants", "shorts", "shoes", "socks", "belt", "tie", "dress", "skirt", "fan", "heater", 
-	"air conditioner", "remote", "charger", "earphones", "headphones", "camera", "microphone", "speaker", "tripod", "stapler", 
-	"paper", "envelope", "stamp", "marker", "highlighter", "ruler", "scissors", "tape", "glue", "calculator", "calendar", "file", 
-	"folder", "cabinet", "desk", "drawer", "couch", "sofa", "rug", "carpet", "vase", "plant", "flower", "curtain", "blinds",
-	"window", "door", "lock", "key", "doormat", "broom", "mop", "bucket", "vacuum", "dustpan", "sponge", "detergent", "cleaner",
-	"lightbulb", "switch", "outlet", "extension cord", "plug", "battery", "fan", "thermometer", "scale", "iron", "ironing board",
-	"sewing kit", "needle", "thread", "button", "zipper", "safety pin", "tape measure", "ladder", "toolbox", "hammer",
-	"screwdriver", "wrench", "pliers", "drill", "nail", "screw", "bolt", "saw", "level", "paint", "brush", "roller",
-	"bucket", "hose", "sprinkler", "shovel", "rake", "hoe", "wheelbarrow", "lawnmower", "trash can", "recycling bin",
-	"bin", "bag", "box", "crate", "basket", "tray", "bowl", "pan", "pot", "lid", "oven", "microwave", "toaster", "kettle",
-	"blender", "mixer", "grater", "peeler", "whisk", "spatula", "ladle", "tongs", "strainer", "colander", "cutting board",
-	"measuring cup", "measuring spoon", "thermos", "pitcher", "cooler", "freezer", "fridge", "stove", "grill", "dish",
-	"snack", "cereal", "bread", "butter", "jam", "milk", "cheese", "egg", "meat", "fish", "vegetable", "fruit", "rice",
-	"pasta", "sauce", "salt", "pepper", "sugar", "oil", "vinegar", "honey", "tea", "coffee", "mug", "can", "jar",
-	"container", "lid", "wrap", "foil", "bag clip", "coaster", "placemat", "candle", "match", "lighter", "incense",
-	"ashtray", "picture", "frame", "photo", "poster", "clock", "alarm", "calendar", "map", "globe", "trophy", "medal",
-	"award", "toy", "doll", "ball", "puzzle", "game", "board game", "card", "dice", "block", "car", "truck", "bus", "bike",
-	"bicycle", "motorcycle", "scooter", "skateboard", "helmet", "seatbelt", "mirror", "horn", "gear", "brake", "pedal",
-	"steering wheel", "license", "registration", "insurance", "ticket", "passport", "ID", "credit card", "debit card",
-	"cash", "coin", "receipt", "invoice", "bill", "check", "chequebook", "wallet", "purse", "clutch", "sunglasses",
-	"goggles", "mask", "bandage", "ointment", "medicine", "pill", "tablet", "capsule", "syrup", "inhaler", "thermometer",
-	"first aid kit", "crutch", "cane", "wheelchair", "walker", "prescription", "vitamin", "supplement", "diaper", "wipe",
-	"lotion", "powder", "toy", "crib", "stroller", "bottle", "pacifier", "bib", "blanket", "teddy bear", "book", "storybook",
-	"coloring book", "crayon", "marker", "chalk", "paint", "brush", "easel", "scissors", "glue", "tape", "string", "bead",
-	"sticker", "stamp", "paper", "card", "envelope", "poster", "canvas", "fabric", "thread", "needle", "sewing machine", "yarn", 
-	"knitting needle", "crochet hook", "embroidery hoop", "thimble", "pin cushion", "pattern", "template", "stencil", "ribbon",
-	"lace", "button", "zipper", "snap", "velcro", "elastic", "safety pin", "clip", "hook", "hanger", "rack", "shelf", "drawer",
-	"closet", "wardrobe", "mirror", "light", "lamp", "chandelier", "lantern", "torch", "flashlight", "candle", "bulb", "switch",
-	"socket", "plug", "cord", "wire", "cable", "router", "modem", "antenna", "remote", "controller", "joystick", "console", "disc", 
-	"CD", "DVD", "Blu-ray", "USB", "hard drive", "memory card", "SD card", "microSD", "adapter", "reader", "printer", "scanner",
-	"fax", "copier", "paper", "ink", "cartridge", "toner", "pen", "pencil", "sharpener", "eraser", "marker", "highlighter", "ruler",
-	"protractor", "compass", "calculator", "notepad", "journal", "diary", "sketchbook", "clipboard", "whiteboard", "blackboard",
-	"chalk", "duster", "pointer", "projector", "screen", "tripod", "stand", "microphone", "speaker", "headset", "earbuds", "phone",
-	"tablet", "e-reader", "stylus", "case", "cover", "screen protector", "cleaner", "wipe", "brush", "cloth", "spray", "detergent",
-	"soap", "sanitizer", "disinfectant", "mask", "gloves", "gown", "apron", "uniform", "badge", "tag", "lanyard", "bracelet", "ring",
-	"necklace", "earring", "watch", "clock", "timer", "stopwatch", "alarm", "bell", "whistle", "horn", "siren", "megaphone", "radio",
-	"walkie-talkie", "signal", "flag", "banner", "sign", "label", "sticker", "tag", "barcode", "QR code", "ticket", "pass", "card",
-	"invitation", "certificate", "diploma", "license", "permit", "contract", "form", "application", "manual", "guide", "booklet",
-	"brochure", "catalog", "magazine", "newspaper", "newsletter", "flyer", "poster", "notice", "announcement", "report", "plan", "schedule", "agenda", "calendar",
+  "chair", "table", "lamp", "pen", "pencil", "notebook", "book", "phone", "television", "laptop", 
+  "mouse", "keyboard", "monitor", "cup", "glass", "bottle", "plate", "fork", "spoon", "knife", "napkin", 
+  "bed", "pillow", "blanket", "sheet", "towel", "soap", "shampoo", "conditioner", "toothbrush", "toothpaste", 
+  "comb", "brush", "mirror", "clock", "watch", "wallet", "bag", "backpack", "suitcase", "umbrella", "hat", "scarf", 
+  "gloves", "jacket", "shirt", "pants", "shorts", "shoes", "socks", "belt", "tie", "dress", "skirt", "fan", "heater", 
+  "air conditioner", "remote", "charger", "earphones", "headphones", "camera", "microphone", "speaker", "tripod", "stapler", 
+  "paper", "envelope", "stamp", "marker", "highlighter", "ruler", "scissors", "tape", "glue", "calculator", "calendar", "file", 
+  "folder", "cabinet", "desk", "drawer", "couch", "sofa", "rug", "carpet", "vase", "plant", "flower", "curtain", "blinds",
+  "window", "door", "lock", "key", "doormat", "broom", "mop", "bucket", "vacuum", "dustpan", "sponge", "detergent", "cleaner",
+  "lightbulb", "switch", "outlet", "extension cord", "plug", "battery", "fan", "thermometer", "scale", "iron", "ironing board",
+  "sewing kit", "needle", "thread", "button", "zipper", "safety pin", "tape measure", "ladder", "toolbox", "hammer",
+  "screwdriver", "wrench", "pliers", "drill", "nail", "screw", "bolt", "saw", "level", "paint", "brush", "roller",
+  "bucket", "hose", "sprinkler", "shovel", "rake", "hoe", "wheelbarrow", "lawnmower", "trash can", "recycling bin",
+  "bin", "bag", "box", "crate", "basket", "tray", "bowl", "pan", "pot", "lid", "oven", "microwave", "toaster", "kettle",
+  "blender", "mixer", "grater", "peeler", "whisk", "spatula", "ladle", "tongs", "strainer", "colander", "cutting board",
+  "measuring cup", "measuring spoon", "thermos", "pitcher", "cooler", "freezer", "fridge", "stove", "grill", "dish",
+  "snack", "cereal", "bread", "butter", "jam", "milk", "cheese", "egg", "meat", "fish", "vegetable", "fruit", "rice",
+  "pasta", "sauce", "salt", "pepper", "sugar", "oil", "vinegar", "honey", "tea", "coffee", "mug", "can", "jar",
+  "container", "lid", "wrap", "foil", "bag clip", "coaster", "placemat", "candle", "match", "lighter", "incense",
+  "ashtray", "picture", "frame", "photo", "poster", "clock", "alarm", "calendar", "map", "globe", "trophy", "medal",
+  "award", "toy", "doll", "ball", "puzzle", "game", "board game", "card", "dice", "block", "car", "truck", "bus", "bike",
+  "bicycle", "motorcycle", "scooter", "skateboard", "helmet", "seatbelt", "mirror", "horn", "gear", "brake", "pedal",
+  "steering wheel", "license", "registration", "insurance", "ticket", "passport", "ID", "credit card", "debit card",
+  "cash", "coin", "receipt", "invoice", "bill", "check", "chequebook", "wallet", "purse", "clutch", "sunglasses",
+  "goggles", "mask", "bandage", "ointment", "medicine", "pill", "tablet", "capsule", "syrup", "inhaler", "thermometer",
+  "first aid kit", "crutch", "cane", "wheelchair", "walker", "prescription", "vitamin", "supplement", "diaper", "wipe",
+  "lotion", "powder", "toy", "crib", "stroller", "bottle", "pacifier", "bib", "blanket", "teddy bear", "book", "storybook",
+  "coloring book", "crayon", "marker", "chalk", "paint", "brush", "easel", "scissors", "glue", "tape", "string", "bead",
+  "sticker", "stamp", "paper", "card", "envelope", "poster", "canvas", "fabric", "thread", "needle", "sewing machine", "yarn", 
+  "knitting needle", "crochet hook", "embroidery hoop", "thimble", "pin cushion", "pattern", "template", "stencil", "ribbon",
+  "lace", "button", "zipper", "snap", "velcro", "elastic", "safety pin", "clip", "hook", "hanger", "rack", "shelf", "drawer",
+  "closet", "wardrobe", "mirror", "light", "lamp", "chandelier", "lantern", "torch", "flashlight", "candle", "bulb", "switch",
+  "socket", "plug", "cord", "wire", "cable", "router", "modem", "antenna", "remote", "controller", "joystick", "console", "disc", 
+  "CD", "DVD", "Blu-ray", "USB", "hard drive", "memory card", "SD card", "microSD", "adapter", "reader", "printer", "scanner",
+  "fax", "copier", "paper", "ink", "cartridge", "toner", "pen", "pencil", "sharpener", "eraser", "marker", "highlighter", "ruler",
+  "protractor", "compass", "calculator", "notepad", "journal", "diary", "sketchbook", "clipboard", "whiteboard", "blackboard",
+  "chalk", "duster", "pointer", "projector", "screen", "tripod", "stand", "microphone", "speaker", "headset", "earbuds", "phone",
+  "tablet", "e-reader", "stylus", "case", "cover", "screen protector", "cleaner", "wipe", "brush", "cloth", "spray", "detergent",
+  "soap", "sanitizer", "disinfectant", "mask", "gloves", "gown", "apron", "uniform", "badge", "tag", "lanyard", "bracelet", "ring",
+  "necklace", "earring", "watch", "clock", "timer", "stopwatch", "alarm", "bell", "whistle", "horn", "siren", "megaphone", "radio",
+  "walkie-talkie", "signal", "flag", "banner", "sign", "label", "sticker", "tag", "barcode", "QR code", "ticket", "pass", "card",
+  "invitation", "certificate", "diploma", "license", "permit", "contract", "form", "application", "manual", "guide", "booklet",
+  "brochure", "catalog", "magazine", "newspaper", "newsletter", "flyer", "poster", "notice", "announcement", "report", "plan", "schedule", "agenda", "calendar",
 
   
   // Proper nouns appropriate for 10th grade (20% of list)
@@ -179,7 +179,7 @@ const getAppropriateArticle = (word) => {
   if (word && word[0] === word[0].toUpperCase() && 
       word !== 'I' && // Exception for the pronoun "I"
       !word.toUpperCase() === word) { // Not an acronym like "NASA"
-    return "";
+    return ""; // Return empty string for proper nouns
   }
   
   // Check if the word is plural
@@ -277,7 +277,6 @@ const formatNewStatement = (activityVerb, components, replacements) => {
       const verb = getCorrectVerb(replacement, "is");
       
       // Add "the" before the component and appropriate article before replacement
-      // IMPORTANT: Don't add article before conjunction - it will be handled in the join logic
       parts.push({
         text: `the ${component} ${verb} ${article ? article + ' ' : ''}${replacement}`,
         article: article
@@ -294,7 +293,7 @@ const formatNewStatement = (activityVerb, components, replacements) => {
     // For 3 or more items, use commas and add "and" ONLY before the last item
     const lastPart = parts.pop();
     const joinedParts = parts.map(part => part.text).join(", ");
-    statement += `${joinedParts} and ${lastPart.text}`;
+    statement += `${joinedParts}, and ${lastPart.text}`;
   }
   
   return statement + ".";
