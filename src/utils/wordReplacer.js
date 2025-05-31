@@ -157,6 +157,17 @@ const getRandomReplacement = (usedWords) => {
   return selectedWord;
 };
 
+// Determine if a word is plural
+const isPlural = (word) => {
+  if (!word) return false;
+  
+  // Common plural endings
+  return word.endsWith('s') && 
+         !word.endsWith('ss') && 
+         !word.endsWith('us') && 
+         !word.endsWith('is');
+};
+
 // Determine the appropriate article for a word
 const getAppropriateArticle = (word) => {
   // If it's a proper noun (starts with capital letter), no article needed
@@ -167,7 +178,7 @@ const getAppropriateArticle = (word) => {
   }
   
   // Check if the word is plural
-  if (word && word.endsWith('s') && !word.endsWith('ss') && !word.endsWith('us')) {
+  if (isPlural(word)) {
     return ""; // No article for plural nouns
   }
   
@@ -214,7 +225,31 @@ const getAppropriateArticle = (word) => {
   return "a";
 };
 
-// Format the statement according to the new syntax with appropriate articles
+// Get the correct verb form based on the subject
+const getCorrectVerb = (subject, verb) => {
+  // If the subject is plural or uncountable, use the base form of the verb
+  if (isPlural(subject)) {
+    return "are"; // Plural subjects use "are"
+  }
+  
+  // Check for uncountable nouns that use "is"
+  const uncountableNouns = [
+    'water', 'coffee', 'tea', 'milk', 'sugar', 'salt', 'pepper', 'rice', 'bread',
+    'cheese', 'butter', 'oil', 'flour', 'meat', 'fish', 'chicken', 'advice',
+    'information', 'news', 'furniture', 'luggage', 'equipment', 'traffic',
+    'money', 'cash', 'currency', 'music', 'art', 'love', 'happiness', 'anger',
+    'fear', 'sadness', 'knowledge', 'progress', 'weather', 'sunshine', 'rain',
+    'snow', 'wind', 'electricity', 'gas', 'air', 'oxygen', 'steam', 'smoke',
+    'pollution', 'garbage', 'trash', 'rubbish', 'homework', 'work', 'research',
+    'evidence', 'proof', 'fun', 'leisure', 'slang', 'vocabulary', 'grammar',
+    'spelling', 'pronunciation', 'sleet', 'fog', 'hail', 'lightning', 'thunder'
+  ];
+  
+  // For singular subjects and uncountable nouns, use "is"
+  return "is";
+};
+
+// Format the statement according to the new syntax with appropriate articles and verb agreement
 const formatNewStatement = (activityVerb, components, replacements) => {
   if (!components || components.length === 0 || !replacements || replacements.length === 0) {
     return activityVerb;
@@ -233,8 +268,11 @@ const formatNewStatement = (activityVerb, components, replacements) => {
       // Get the appropriate article for the replacement
       const article = getAppropriateArticle(replacement);
       
+      // Get the correct verb form based on the replacement
+      const verb = getCorrectVerb(replacement, "is");
+      
       // Add "the" before the component and appropriate article before replacement
-      parts.push(`the ${component} is ${article ? article + ' ' : ''}${replacement}`);
+      parts.push(`the ${component} ${verb} ${article ? article + ' ' : ''}${replacement}`);
     }
   }
   
@@ -246,7 +284,7 @@ const formatNewStatement = (activityVerb, components, replacements) => {
   } else {
     // For 3 or more items, use commas and add "and" ONLY before the last item
     const lastPart = parts.pop();
-    statement += `${parts.join(", ")} and ${lastPart}`;
+    statement += `${parts.join(", ")} and ${parts.length > 0 ? lastPart : ''}`;
   }
   
   return statement + ".";
