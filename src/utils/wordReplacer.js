@@ -127,14 +127,18 @@ const identifyNouns = (statement) => {
 };
 
 // Get a random word from the replacement list that hasn't been used before
+// and doesn't contain "and"
 const getRandomReplacement = (usedWords) => {
-  // Filter out words that have been used before
+  // Filter out words that have been used before or contain "and"
   const availableWords = tenthGradeWords.filter(word => 
-    !usedWords.has(word.toLowerCase())
+    !usedWords.has(word.toLowerCase()) && 
+    !word.toLowerCase().includes('and')
   );
   
-  // If all words have been used, just use the full list
-  const wordsToUse = availableWords.length > 0 ? availableWords : tenthGradeWords;
+  // If all words have been used, just use the filtered list without "and"
+  const wordsToUse = availableWords.length > 0 ? 
+    availableWords : 
+    tenthGradeWords.filter(word => !word.toLowerCase().includes('and'));
   
   // Get a random word
   const randomIndex = Math.floor(Math.random() * wordsToUse.length);
@@ -142,10 +146,11 @@ const getRandomReplacement = (usedWords) => {
   
   // Add some randomness - 20% chance to use a proper noun
   if (Math.random() < 0.2) {
-    // Get proper nouns (they start with uppercase)
+    // Get proper nouns (they start with uppercase) that don't contain "and"
     const properNouns = tenthGradeWords.filter(word => 
       word[0] === word[0].toUpperCase() && 
-      !usedWords.has(word.toLowerCase())
+      !usedWords.has(word.toLowerCase()) &&
+      !word.toLowerCase().includes('and')
     );
     
     if (properNouns.length > 0) {
@@ -272,19 +277,24 @@ const formatNewStatement = (activityVerb, components, replacements) => {
       const verb = getCorrectVerb(replacement, "is");
       
       // Add "the" before the component and appropriate article before replacement
-      parts.push(`the ${component} ${verb} ${article ? article + ' ' : ''}${replacement}`);
+      // IMPORTANT: Don't add article before conjunction - it will be handled in the join logic
+      parts.push({
+        text: `the ${component} ${verb} ${article ? article + ' ' : ''}${replacement}`,
+        article: article
+      });
     }
   }
   
   // Join the parts with commas and "and" ONLY before the final item
   if (parts.length === 1) {
-    statement += parts[0];
+    statement += parts[0].text;
   } else if (parts.length === 2) {
-    statement += `${parts[0]} and ${parts[1]}`;
+    statement += `${parts[0].text} and ${parts[1].text}`;
   } else {
     // For 3 or more items, use commas and add "and" ONLY before the last item
     const lastPart = parts.pop();
-    statement += `${parts.join(", ")} and ${parts.length > 0 ? lastPart : ''}`;
+    const joinedParts = parts.map(part => part.text).join(", ");
+    statement += `${joinedParts} and ${lastPart.text}`;
   }
   
   return statement + ".";
