@@ -238,15 +238,15 @@ const formatNewStatement = (activityVerb, components, replacements) => {
     }
   }
   
-  // Join the parts with commas and "and" following proper grammar rules
+  // Join the parts with commas and "and" ONLY before the final item
   if (parts.length === 1) {
     statement += parts[0];
   } else if (parts.length === 2) {
     statement += `${parts[0]} and ${parts[1]}`;
   } else {
-    // For 3 or more items, use commas and add "and" before the last item
+    // For 3 or more items, use commas and add "and" ONLY before the last item
     const lastPart = parts.pop();
-    statement += `${parts.join(", ")}, and ${lastPart}`;
+    statement += `${parts.join(", ")} and ${lastPart}`;
   }
   
   return statement + ".";
