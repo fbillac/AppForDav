@@ -1,5 +1,5 @@
-// This is a mock implementation that would normally use the OpenAI API
-// In a real implementation, you would call the OpenAI API here
+// Statement generator using OpenAI or fallback to local data
+import openAIService from './openaiService';
 
 // Activities with components - all physically demonstrable for charades
 const fullActivities = [
@@ -261,7 +261,33 @@ const createStatementWithComponents = (activityVerb, components, numComponents) 
   };
 };
 
+// Try to use OpenAI, fall back to local data if not available
 export const generateStatement = async (numToReplace = 0) => {
+  try {
+    // Try to use OpenAI if it's initialized
+    if (openAIService.initialized) {
+      // Generate activity with OpenAI
+      const numComponents = numToReplace === 0 ? Math.floor(Math.random() * 3) + 2 : numToReplace;
+      const result = await openAIService.generateActivity(numComponents);
+      
+      // Format the result to match our expected structure
+      return {
+        activityVerb: result.activityVerb,
+        selectedComponents: result.components
+      };
+    } else {
+      // Fall back to local data
+      console.log("OpenAI not initialized, using local data");
+      return fallbackGenerateStatement(numToReplace);
+    }
+  } catch (error) {
+    console.error("Error using OpenAI, falling back to local data:", error);
+    return fallbackGenerateStatement(numToReplace);
+  }
+};
+
+// Fallback to local data if OpenAI is not available
+const fallbackGenerateStatement = async (numToReplace = 0) => {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   

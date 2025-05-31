@@ -1,3 +1,6 @@
+// Word replacement utility using OpenAI or fallback to local data
+import openAIService from './openaiService';
+
 // 10th grade level words (appropriate for 10th grade reading level)
 const tenthGradeWords = [
   // Common nouns at 10th grade level or below
@@ -128,7 +131,7 @@ const identifyNouns = (statement) => {
 
 // Get a random word from the replacement list that hasn't been used before
 // and doesn't contain "and"
-const getRandomReplacement = (usedWords) => {
+export const getRandomReplacement = (usedWords) => {
   // Filter out words that have been used before or contain "and"
   const availableWords = tenthGradeWords.filter(word => 
     !usedWords.has(word.toLowerCase()) && 
@@ -306,6 +309,31 @@ export const replaceWords = async (statement, usedWords, numToReplace = 0) => {
     return { replacedText: "Error: Invalid statement format", replacements: [] };
   }
   
+  const { activityVerb, selectedComponents } = statement;
+  
+  try {
+    // Try to use OpenAI if it's initialized
+    if (openAIService.initialized) {
+      // Generate replacements with OpenAI
+      const replacements = await openAIService.generateReplacements(selectedComponents, usedWords);
+      
+      // Format the statement according to the new syntax
+      const replacedText = formatNewStatement(activityVerb, selectedComponents, replacements);
+      
+      return { replacedText, replacements };
+    } else {
+      // Fall back to local data
+      console.log("OpenAI not initialized for replacements, using local data");
+      return fallbackReplaceWords(statement, usedWords);
+    }
+  } catch (error) {
+    console.error("Error using OpenAI for replacements, falling back to local data:", error);
+    return fallbackReplaceWords(statement, usedWords);
+  }
+};
+
+// Fallback to local data if OpenAI is not available
+const fallbackReplaceWords = async (statement, usedWords) => {
   const { activityVerb, selectedComponents } = statement;
   
   // Create replacements for each component

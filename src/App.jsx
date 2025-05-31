@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Timer from './components/Timer';
 import { generateStatement } from './utils/statementGenerator';
-import { replaceWords } from './utils/wordReplacer';
+import { replaceWords, getRandomReplacement } from './utils/wordReplacer';
 import { simplifyStatement, simplifyReplacements } from './utils/simplifier';
+import { getRandomComponent } from './utils/componentReplacer';
 
 function App() {
   const [originalStatement, setOriginalStatement] = useState(null);
@@ -11,18 +12,19 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSimplifying, setIsSimplifying] = useState(false);
   const [usedWords, setUsedWords] = useState(new Set());
-  const [numToReplace, setNumToReplace] = useState(0); // 0 means auto (2-4)
+  const [isReplacingWord, setIsReplacingWord] = useState(false);
+  const [isReplacingComponent, setIsReplacingComponent] = useState(false);
   const [simplifyType, setSimplifyType] = useState('both'); // 'both', 'activity', or 'replacements'
   
   const generateNewThing = async () => {
     setIsLoading(true);
     try {
-      // Generate a statement with only the number of components we want to replace
-      const statement = await generateStatement(numToReplace);
+      // Generate a statement with a random number of components (2-4)
+      const statement = await generateStatement(0); // 0 means auto (2-4)
       setOriginalStatement(statement);
       
       if (statement && statement.activityVerb) {
-        const { replacedText, replacements } = await replaceWords(statement, usedWords, numToReplace);
+        const { replacedText, replacements } = await replaceWords(statement, usedWords);
         setReplacedStatement(replacedText);
         setWordPairs(replacements);
         
@@ -56,8 +58,77 @@ function App() {
     }
   };
 
-  const handleNumReplaceChange = (e) => {
-    setNumToReplace(parseInt(e.target.value, 10));
+  const handleReplaceWord = async (index) => {
+    if (isLoading || isSimplifying || isReplacingWord) return;
+    
+    setIsReplacingWord(true);
+    
+    try {
+      // Get a new random replacement
+      const newReplacement = getRandomReplacement(usedWords);
+      
+      // Update the word pair at the specified index
+      const updatedWordPairs = [...wordPairs];
+      updatedWordPairs[index] = {
+        ...updatedWordPairs[index],
+        replacement: newReplacement
+      };
+      
+      setWordPairs(updatedWordPairs);
+      
+      // Add the new word to the used words set
+      const newUsedWords = new Set(usedWords);
+      newUsedWords.add(newReplacement.toLowerCase());
+      setUsedWords(newUsedWords);
+      
+    } catch (error) {
+      console.error('Error replacing word:', error);
+    } finally {
+      setIsReplacingWord(false);
+    }
+  };
+
+  const handleReplaceComponent = async (index) => {
+    if (isLoading || isSimplifying || isReplacingComponent || !originalStatement) return;
+    
+    setIsReplacingComponent(true);
+    
+    try {
+      // Get a new component that's logical for the activity
+      const newComponent = getRandomComponent(originalStatement.activityVerb);
+      
+      // Create a new statement object with the updated component
+      const updatedComponents = [...originalStatement.selectedComponents];
+      updatedComponents[index] = newComponent;
+      
+      const updatedStatement = {
+        ...originalStatement,
+        selectedComponents: updatedComponents
+      };
+      
+      setOriginalStatement(updatedStatement);
+      
+      // Generate new replacements for the updated statement
+      const { replacedText, replacements } = await replaceWords(updatedStatement, usedWords);
+      setReplacedStatement(replacedText);
+      setWordPairs(replacements);
+      
+      // Update used words
+      const newUsedWords = new Set(usedWords);
+      if (replacements && replacements.length > 0) {
+        replacements.forEach(pair => {
+          if (pair && pair.replacement) {
+            newUsedWords.add(pair.replacement.toLowerCase());
+          }
+        });
+      }
+      setUsedWords(newUsedWords);
+      
+    } catch (error) {
+      console.error('Error replacing component:', error);
+    } finally {
+      setIsReplacingComponent(false);
+    }
   };
 
   const handleSimplifyTypeChange = (e) => {
@@ -78,7 +149,7 @@ function App() {
           setOriginalStatement(simplifiedStatement);
           
           // Generate new replacements for the simplified components
-          const { replacedText, replacements } = await replaceWords(simplifiedStatement, usedWords, numToReplace);
+          const { replacedText, replacements } = await replaceWords(simplifiedStatement, usedWords);
           setReplacedStatement(replacedText);
           setWordPairs(replacements);
           
@@ -136,6 +207,27 @@ function App() {
         )}
       </div>
       
+      {!isLoading && !isSimplifying && originalStatement && originalStatement.selectedComponents && (
+        <div className="components-container">
+          <h3>Components:</h3>
+          <ul className="components-list">
+            {originalStatement.selectedComponents.map((component, index) => (
+              <li key={`component-${index}`} className="component-item">
+                <span className="component-text">{component}</span>
+                <button 
+                  className="replace-btn" 
+                  onClick={() => handleReplaceComponent(index)}
+                  disabled={isReplacingComponent}
+                  title="Get new component"
+                >
+                  ↻
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
       {!isLoading && !isSimplifying && wordPairs && wordPairs.length > 0 && (
         <div className="word-replacements">
           <h3>Replacements:</h3>
@@ -143,7 +235,17 @@ function App() {
             {wordPairs.map((pair, index) => (
               <li key={index} className="word-pair">
                 <span className="original">{pair.original}</span> → 
-                <span className="replacement">{pair.replacement}</span>
+                <div className="replacement-wrapper">
+                  <span className="replacement">{pair.replacement}</span>
+                  <button 
+                    className="replace-btn" 
+                    onClick={() => handleReplaceWord(index)}
+                    disabled={isReplacingWord}
+                    title="Get new replacement"
+                  >
+                    ↻
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -152,23 +254,6 @@ function App() {
       
       <div className="controls">
         <div className="control-group">
-          <div className="replacement-controls">
-            <label htmlFor="numToReplace">Number of components to replace:</label>
-            <select 
-              id="numToReplace" 
-              value={numToReplace} 
-              onChange={handleNumReplaceChange}
-              disabled={isLoading || isSimplifying}
-            >
-              <option value="0">Auto (2-4)</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
-          </div>
-          
           <div className="simplify-controls">
             <label htmlFor="simplifyType">Simplify:</label>
             <select 
