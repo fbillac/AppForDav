@@ -71,8 +71,9 @@ Rules:
 1. Each replacement should be a single noun
 2. Words should be appropriate for 10th grade reading level
 3. Words should NOT include "and"
-4. Words should NOT be in this list: ${usedWordsArray.slice(0, 50).join(", ")}
+4. Words should NOT be in this list: ${usedWordsArray.slice(0, 200).join(", ")}
 5. Each replacement must be UNIQUE - do not repeat any word
+6. IMPORTANT: Do not use any words that have been used before, even if they're not in the list above
 
 Format the response as a JSON array with the following structure:
 [

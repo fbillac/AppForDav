@@ -132,37 +132,27 @@ const identifyNouns = (statement) => {
 // Get a random word from the replacement list that hasn't been used before
 // and doesn't contain "and"
 export const getRandomReplacement = (usedWords) => {
+  // Convert usedWords to lowercase for case-insensitive comparison
+  const usedWordsLower = new Set(Array.from(usedWords).map(word => word.toLowerCase()));
+  
   // Filter out words that have been used before or contain "and"
   const availableWords = tenthGradeWords.filter(word => 
-    !usedWords.has(word.toLowerCase()) && 
+    !usedWordsLower.has(word.toLowerCase()) && 
     !word.toLowerCase().includes('and')
   );
   
-  // If all words have been used, just use the filtered list without "and"
-  const wordsToUse = availableWords.length > 0 ? 
-    availableWords : 
-    tenthGradeWords.filter(word => !word.toLowerCase().includes('and'));
-  
-  // Get a random word
-  const randomIndex = Math.floor(Math.random() * wordsToUse.length);
-  const selectedWord = wordsToUse[randomIndex];
-  
-  // Add some randomness - 20% chance to use a proper noun
-  if (Math.random() < 0.2) {
-    // Get proper nouns (they start with uppercase) that don't contain "and"
-    const properNouns = tenthGradeWords.filter(word => 
-      word[0] === word[0].toUpperCase() && 
-      !usedWords.has(word.toLowerCase()) &&
-      !word.toLowerCase().includes('and')
-    );
-    
-    if (properNouns.length > 0) {
-      const randomProperIndex = Math.floor(Math.random() * properNouns.length);
-      return properNouns[randomProperIndex];
-    }
+  // If we have no available words, generate a completely random word
+  if (availableWords.length === 0) {
+    // Generate a random word with a random prefix
+    const prefixes = ['mega', 'ultra', 'super', 'hyper', 'mini', 'micro', 'nano', 'giga', 'tera', 'pico'];
+    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const randomSuffix = Math.floor(Math.random() * 10000);
+    return `${randomPrefix}thing${randomSuffix}`;
   }
   
-  return selectedWord;
+  // Get a random word from available words
+  const randomIndex = Math.floor(Math.random() * availableWords.length);
+  return availableWords[randomIndex];
 };
 
 // Determine if a word is plural
@@ -303,7 +293,7 @@ const formatNewStatement = (activityVerb, components, replacements) => {
 };
 
 // Main function to replace words in a statement
-export const replaceWords = async (statement, usedWords, numToReplace = 0) => {
+export const replaceWords = async (statement, usedWords) => {
   // Check if statement is an object with activityVerb and selectedComponents
   if (!statement || typeof statement !== 'object' || !statement.activityVerb || !statement.selectedComponents) {
     return { replacedText: "Error: Invalid statement format", replacements: [] };

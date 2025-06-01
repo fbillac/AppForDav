@@ -3,17 +3,28 @@ import Timer from './components/Timer';
 import { generateStatement, ensureUniqueComponents } from './utils/statementGenerator';
 import { replaceWords, getRandomReplacement } from './utils/wordReplacer';
 import { getUniqueRandomComponent } from './utils/componentReplacer';
+import { 
+  initializeUsedWordsStorage, 
+  addUsedWords, 
+  getUsedWordsCount 
+} from './utils/wordStorage';
 
 function App() {
   const [originalStatement, setOriginalStatement] = useState(null);
   const [replacedStatement, setReplacedStatement] = useState('');
   const [wordPairs, setWordPairs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [usedWords, setUsedWords] = useState(new Set());
+  const [usedWords, setUsedWords] = useState(() => initializeUsedWordsStorage());
+  const [usedWordsCount, setUsedWordsCount] = useState(0);
   const [isReplacingWord, setIsReplacingWord] = useState(false);
   const [isReplacingComponent, setIsReplacingComponent] = useState(false);
   const [componentCount, setComponentCount] = useState(3); // Default to 3 components
   const [darkMode, setDarkMode] = useState(false);
+  
+  // Update the used words count whenever usedWords changes
+  useEffect(() => {
+    setUsedWordsCount(getUsedWordsCount());
+  }, [usedWords]);
   
   const generateNewThing = async () => {
     setIsLoading(true);
@@ -31,21 +42,14 @@ function App() {
         setReplacedStatement(replacedText);
         setWordPairs(replacements);
         
-        // Add new words to the used words set
-        const newUsedWords = new Set(usedWords);
+        // Add new words to the used words set and persist to localStorage
         if (replacements && replacements.length > 0) {
-          replacements.forEach(pair => {
-            if (pair && pair.replacement) {
-              newUsedWords.add(pair.replacement.toLowerCase());
-            }
-          });
-        }
-        
-        // Reset used words if we've reached 1000 unique words
-        if (newUsedWords.size >= 1000) {
-          setUsedWords(new Set());
-        } else {
-          setUsedWords(newUsedWords);
+          const newWords = replacements
+            .filter(pair => pair && pair.replacement)
+            .map(pair => pair.replacement.toLowerCase());
+          
+          const updatedUsedWords = addUsedWords(newWords);
+          setUsedWords(updatedUsedWords);
         }
       } else {
         console.error('Invalid statement format returned from generator');
@@ -67,7 +71,7 @@ function App() {
     setIsReplacingWord(true);
     
     try {
-      // Get a new random replacement
+      // Get a new random replacement that hasn't been used before
       const newReplacement = getRandomReplacement(usedWords);
       
       // Update the word pair at the specified index
@@ -79,10 +83,9 @@ function App() {
       
       setWordPairs(updatedWordPairs);
       
-      // Add the new word to the used words set
-      const newUsedWords = new Set(usedWords);
-      newUsedWords.add(newReplacement.toLowerCase());
-      setUsedWords(newUsedWords);
+      // Add the new word to the used words set and persist to localStorage
+      const updatedUsedWords = addUsedWords(newReplacement.toLowerCase());
+      setUsedWords(updatedUsedWords);
       
     } catch (error) {
       console.error('Error replacing word:', error);
@@ -117,21 +120,14 @@ function App() {
       
       setOriginalStatement(updatedStatement);
       
-      // Generate new replacements for the updated statement
-      const { replacedText, replacements } = await replaceWords(updatedStatement, usedWords);
-      setReplacedStatement(replacedText);
-      setWordPairs(replacements);
+      // Update only the original component in the word pair
+      const updatedWordPairs = [...wordPairs];
+      updatedWordPairs[index] = {
+        ...updatedWordPairs[index],
+        original: newComponent
+      };
       
-      // Update used words
-      const newUsedWords = new Set(usedWords);
-      if (replacements && replacements.length > 0) {
-        replacements.forEach(pair => {
-          if (pair && pair.replacement) {
-            newUsedWords.add(pair.replacement.toLowerCase());
-          }
-        });
-      }
-      setUsedWords(newUsedWords);
+      setWordPairs(updatedWordPairs);
       
     } catch (error) {
       console.error('Error replacing component:', error);
@@ -256,6 +252,10 @@ function App() {
         >
           {isLoading ? 'Generating...' : 'New Thing'}
         </button>
+      </div>
+      
+      <div className="word-tracking">
+        <small>Unique words used: {usedWordsCount}/1000</small>
       </div>
     </div>
   );
