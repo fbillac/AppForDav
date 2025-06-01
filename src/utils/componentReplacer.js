@@ -8,7 +8,7 @@ const activityComponentMap = {
   "baking": ["flour", "sugar", "eggs", "butter", "milk", "mixing bowl", "whisk", "spatula", "measuring cup", "measuring spoon", "rolling pin", "baking sheet", "oven", "timer", "mixer", "sifter", "cooling rack", "cake pan", "muffin tin", "piping bag", "frosting", "sprinkles", "vanilla extract", "chocolate chips"],
   
   // Crafting/Art activities
-  "painting": ["canvas", "brush", "paint", "palette", "easel", "water jar", "cloth", "smock", "pencil", "eraser", "sketch pad", "reference photo", "masking tape", "frame", "varnish", "sponge", "spray bottle", "color wheel", "dropper", "paint tube"],
+  "painting": ["canvas", "brush", "paint", "painter", "palette", "easel", "water jar", "cloth", "smock", "pencil", "eraser", "sketch pad", "reference photo", "masking tape", "frame", "varnish", "sponge", "spray bottle", "color wheel", "dropper", "paint tube"],
   
   "drawing": ["pencil", "paper", "eraser", "sharpener", "ruler", "compass", "marker", "pen", "sketchbook", "charcoal", "blending stump", "reference photo", "clipboard", "desk lamp", "template", "tracing paper", "ink bottle", "colored pencil set"],
   
@@ -71,12 +71,22 @@ const activityComponentMap = {
   
   "diagnosing": ["stethoscope", "blood pressure cuff", "thermometer", "otoscope", "reflex hammer", "tongue depressor", "medical chart", "x-ray film", "MRI scan", "blood test results", "examination table", "medical gloves", "patient history", "prescription pad", "medical reference", "diagnostic manual"],
   
-  // Sports activities
-  "basketball": ["basketball", "basketball hoop", "backboard", "court floor", "referee whistle", "scoreboard", "team jersey", "basketball shoes", "shot clock", "free throw line", "three-point line", "bench", "water bottle", "coach's clipboard", "timeout card", "basketball strategy"],
+  // Sports activities - Added specific sport categories
+  "basketball": ["basketball", "basketball hoop", "backboard", "court floor", "referee whistle", "scoreboard", "team jersey", "basketball shoes", "shot clock", "free throw line", "three-point line", "bench", "water bottle", "coach's clipboard", "timeout card", "basketball strategy", "basketball player", "basketball coach", "basketball court", "basketball uniform", "basketball net", "basketball rim", "basketball stand", "basketball arena", "basketball tournament"],
   
-  "football": ["football", "goal post", "field marker", "referee whistle", "penalty flag", "shoulder pads", "football helmet", "mouth guard", "football cleat", "playbook", "down marker", "field goal", "quarterback", "receiver", "defensive line", "offensive strategy"],
+  "football": ["football", "goal post", "field marker", "referee whistle", "penalty flag", "shoulder pads", "football helmet", "mouth guard", "football cleat", "playbook", "down marker", "field goal", "quarterback", "receiver", "defensive line", "offensive strategy", "football field", "football stadium", "football coach", "football player", "football uniform", "football tackle", "football pass", "football game", "football team"],
   
-  "swimming": ["swimming goggles", "swim cap", "swimsuit", "kickboard", "lane divider", "starting block", "pool water", "swim fins", "hand paddles", "nose clip", "stopwatch", "coach's whistle", "pool deck", "diving board", "swimming technique", "breathing rhythm"],
+  "swimming": ["swimming goggles", "swim cap", "swimsuit", "kickboard", "lane divider", "starting block", "pool water", "swim fins", "hand paddles", "nose clip", "stopwatch", "coach's whistle", "pool deck", "diving board", "swimming technique", "breathing rhythm", "swimming pool", "swimming lane", "swimming coach", "swimming competition", "swimming stroke", "swimming turn", "swimming dive", "swimming relay", "swimming team"],
+  
+  "tennis": ["tennis racket", "tennis ball", "tennis court", "tennis net", "tennis shoes", "tennis outfit", "tennis serve", "tennis forehand", "tennis backhand", "tennis volley", "tennis match", "tennis player", "tennis coach", "tennis tournament", "tennis stadium", "tennis umpire", "tennis strategy", "tennis grip", "tennis swing", "tennis practice"],
+  
+  "soccer": ["soccer ball", "soccer goal", "soccer field", "soccer cleats", "soccer uniform", "soccer referee", "soccer whistle", "soccer coach", "soccer player", "soccer team", "soccer match", "soccer tournament", "soccer stadium", "soccer strategy", "soccer pass", "soccer shot", "soccer header", "soccer tackle", "soccer penalty", "soccer corner kick"],
+  
+  "volleyball": ["volleyball", "volleyball net", "volleyball court", "volleyball shoes", "volleyball uniform", "volleyball referee", "volleyball whistle", "volleyball coach", "volleyball player", "volleyball team", "volleyball match", "volleyball tournament", "volleyball serve", "volleyball spike", "volleyball block", "volleyball dig", "volleyball set", "volleyball rotation", "volleyball strategy", "volleyball position"],
+  
+  "baseball": ["baseball", "baseball bat", "baseball glove", "baseball cap", "baseball uniform", "baseball field", "baseball diamond", "baseball pitcher", "baseball catcher", "baseball umpire", "baseball coach", "baseball player", "baseball team", "baseball game", "baseball stadium", "baseball strategy", "baseball pitch", "baseball swing", "baseball hit", "baseball run"],
+  
+  "golf": ["golf club", "golf ball", "golf tee", "golf course", "golf hole", "golf flag", "golf cart", "golf bag", "golf shoes", "golf glove", "golf swing", "golf putt", "golf drive", "golf player", "golf coach", "golf tournament", "golf strategy", "golf stance", "golf grip", "golf score"],
   
   // Performance activities
   "dancing": ["dance shoes", "dance floor", "mirror wall", "ballet barre", "music speaker", "choreography notes", "costume", "stage light", "dance partner", "rhythm count", "dance routine", "performance space", "audience seats", "backstage area", "warm-up mat", "water bottle"],
@@ -92,7 +102,42 @@ const determineActivityType = (activityVerb) => {
   // Convert to lowercase for case-insensitive matching
   const verb = activityVerb.toLowerCase();
   
-  // Check for specific activity types
+  // Check for specific sports first (most specific matching)
+  if (verb.includes("basketball") || verb.includes("shoot hoops") || verb.includes("dribbling")) {
+    return "basketball";
+  }
+  
+  if (verb.includes("football") || verb.includes("tackle") || verb.includes("quarterback") || 
+      verb.includes("touchdown") || verb.includes("field goal")) {
+    return "football";
+  }
+  
+  if (verb.includes("tennis") || verb.includes("racket") || verb.includes("court game")) {
+    return "tennis";
+  }
+  
+  if (verb.includes("soccer") || verb.includes("futbol") || verb.includes("kick ball")) {
+    return "soccer";
+  }
+  
+  if (verb.includes("volleyball") || verb.includes("spike") || verb.includes("serve ball")) {
+    return "volleyball";
+  }
+  
+  if (verb.includes("baseball") || verb.includes("batting") || verb.includes("pitching")) {
+    return "baseball";
+  }
+  
+  if (verb.includes("golf") || verb.includes("putting") || verb.includes("driving range")) {
+    return "golf";
+  }
+  
+  if (verb.includes("swim") || verb.includes("dive") || verb.includes("freestyle") || 
+      verb.includes("backstroke") || verb.includes("pool")) {
+    return "swimming";
+  }
+  
+  // Check for activity types by exact match in the map
   for (const [type, _] of Object.entries(activityComponentMap)) {
     if (verb.includes(type)) {
       return type;
@@ -144,7 +189,7 @@ const determineActivityType = (activityVerb) => {
     return "cleaning";
   }
   
-  // Check for playing verbs
+  // Check for playing verbs - generic playing (if not caught by specific sports above)
   if (verb.includes("play") || verb.includes("compet") || verb.includes("game") ||
       verb.includes("match") || verb.includes("sport")) {
     return "playing";
@@ -177,19 +222,6 @@ const determineActivityType = (activityVerb) => {
   if (verb.includes("diagnos") || verb.includes("examin") || verb.includes("check") ||
       verb.includes("test") || verb.includes("scan") || verb.includes("screen")) {
     return "diagnosing";
-  }
-  
-  // Check for sports verbs
-  if (verb.includes("basketball") || verb.includes("dunk") || verb.includes("shoot hoops")) {
-    return "basketball";
-  }
-  
-  if (verb.includes("football") || verb.includes("tackle") || verb.includes("quarterback")) {
-    return "football";
-  }
-  
-  if (verb.includes("swim") || verb.includes("dive") || verb.includes("freestyle")) {
-    return "swimming";
   }
   
   // Check for performance verbs
@@ -254,6 +286,9 @@ export const getUniqueRandomComponent = (activityVerb, existingComponents = [], 
         "baking": ["pastry brush", "cookie cutter", "cake tester", "silicone baking mat"],
         "surgery": ["surgical clamp", "bone saw", "surgical stapler", "cauterizing tool"],
         "painting": ["fan brush", "palette knife", "canvas stretcher", "masking fluid"],
+        "basketball": ["basketball jersey", "basketball shorts", "basketball socks", "basketball wristband"],
+        "football": ["football jersey", "football pants", "football mouthguard", "football gloves"],
+        "soccer": ["soccer jersey", "soccer shorts", "soccer socks", "soccer shin guards"],
         "default": ["precision tool", "specialized equipment", "essential accessory", "professional-grade implement"]
       };
       

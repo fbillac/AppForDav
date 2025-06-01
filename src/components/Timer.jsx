@@ -8,6 +8,7 @@ function Timer({ darkMode }) {
   const [showCountdown, setShowCountdown] = useState(false);
   const intervalRef = useRef(null);
   const audioRef = useRef(null);
+  const countdownTimeoutRef = useRef(null);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -18,24 +19,38 @@ function Timer({ darkMode }) {
   const startTimer = () => {
     if (!isRunning) {
       setIsRunning(true);
+      setShowCountdown(false); // Ensure countdown is hidden when starting
+      
+      // Clear any existing timeout
+      if (countdownTimeoutRef.current) {
+        clearTimeout(countdownTimeoutRef.current);
+        countdownTimeoutRef.current = null;
+      }
+      
+      // Calculate when to show the countdown (when 10 seconds remain)
+      const countdownDelay = (duration - 10 - time) * 1000;
+      
+      // Only set the countdown timeout if we haven't passed the 10-second mark yet
+      if (countdownDelay > 0) {
+        countdownTimeoutRef.current = setTimeout(() => {
+          setShowCountdown(true);
+        }, countdownDelay);
+      }
+      
       intervalRef.current = setInterval(() => {
         setTime(prevTime => {
           const newTime = prevTime + 1;
           const timeRemaining = duration - newTime;
           
-          // Show countdown overlay when 10 seconds remain
-          if (timeRemaining === 10) {
-            setShowCountdown(true);
-          }
-          
-          // Play buzzer when timer reaches zero
-          if (timeRemaining <= 0) {
+          // Play buzzer when timer reaches 10 seconds (instead of 0)
+          if (timeRemaining <= 10) {
             clearInterval(intervalRef.current);
             setIsRunning(false);
             if (audioRef.current) {
               audioRef.current.play().catch(e => console.error("Error playing sound:", e));
             }
-            return duration;
+            // Set time to make the display show exactly 10 seconds remaining
+            return duration - 10;
           }
           return newTime;
         });
@@ -47,6 +62,12 @@ function Timer({ darkMode }) {
     if (isRunning) {
       clearInterval(intervalRef.current);
       setIsRunning(false);
+      
+      // Clear the countdown timeout when stopping
+      if (countdownTimeoutRef.current) {
+        clearTimeout(countdownTimeoutRef.current);
+        countdownTimeoutRef.current = null;
+      }
     }
   };
 
@@ -55,6 +76,12 @@ function Timer({ darkMode }) {
     setIsRunning(false);
     setTime(0);
     setShowCountdown(false);
+    
+    // Clear the countdown timeout when resetting
+    if (countdownTimeoutRef.current) {
+      clearTimeout(countdownTimeoutRef.current);
+      countdownTimeoutRef.current = null;
+    }
   };
 
   const handleDurationChange = (e) => {
@@ -69,12 +96,17 @@ function Timer({ darkMode }) {
 
   const handleCountdownComplete = () => {
     setShowCountdown(false);
+    resetTimer(); // Reset the main timer when the overlay countdown completes
   };
 
+  // Clean up all timers when component unmounts
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+      }
+      if (countdownTimeoutRef.current) {
+        clearTimeout(countdownTimeoutRef.current);
       }
     };
   }, []);
@@ -97,7 +129,7 @@ function Timer({ darkMode }) {
       </div>
       
       <div className="timer-controls">
-        <button onClick={startTimer} disabled={isRunning || time >= duration}>
+        <button onClick={startTimer} disabled={isRunning || timeRemaining <= 10}>
           Start
         </button>
         <button onClick={stopTimer} disabled={!isRunning} className="secondary">
@@ -129,7 +161,6 @@ function Timer({ darkMode }) {
       {/* Countdown overlay */}
       {showCountdown && (
         <CountdownOverlay 
-          initialCount={10} 
           onComplete={handleCountdownComplete}
           darkMode={darkMode}
         />

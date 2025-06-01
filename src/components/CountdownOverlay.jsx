@@ -1,30 +1,45 @@
 import React, { useState, useEffect } from 'react';
 
-function CountdownOverlay({ initialCount = 10, onComplete, darkMode }) {
-  const [count, setCount] = useState(initialCount);
+function CountdownOverlay({ onComplete, darkMode }) {
+  const [count, setCount] = useState(10);
   const [showExplosion, setShowExplosion] = useState(false);
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
-    if (count <= 0) {
-      // Show explosion effect when countdown reaches zero
-      setShowExplosion(true);
-      
-      // Hide the explosion effect after animation completes
-      const explosionTimer = setTimeout(() => {
-        setShowExplosion(false);
-        if (onComplete) onComplete();
-      }, 1500);
-      
-      return () => clearTimeout(explosionTimer);
+    // Reset state when component mounts
+    setCount(10);
+    setShowExplosion(false);
+    setIsActive(true);
+    
+    let countdownTimer;
+    
+    if (isActive) {
+      countdownTimer = setInterval(() => {
+        setCount(prevCount => {
+          if (prevCount <= 1) {
+            clearInterval(countdownTimer);
+            setShowExplosion(true);
+            
+            // Hide explosion and complete after animation
+            setTimeout(() => {
+              setShowExplosion(false);
+              if (onComplete) onComplete();
+            }, 1500);
+            
+            return 0;
+          }
+          return prevCount - 1;
+        });
+      }, 1000);
     }
     
-    // Decrement the counter every second
-    const timer = setTimeout(() => {
-      setCount(count - 1);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [count, onComplete]);
+    // Cleanup function
+    return () => {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+      }
+    };
+  }, [onComplete, isActive]);
 
   return (
     <div className={`countdown-overlay ${darkMode ? 'dark-mode' : ''}`}>
