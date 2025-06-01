@@ -37,7 +37,20 @@ Format the response as a JSON object with the following structure:
   "activityVerb": "The activity (e.g., 'Building a house')",
   "components": ["component1", "component2", "component3"]
 }
-The activity must be something that can be physically acted out. The components must be physical objects that would logically be used in the activity.
+The activity must be something that can be physically acted out. 
+
+IMPORTANT: The components must be SPECIFIC, TANGIBLE objects, roles, or locations that would logically be used in the activity.
+- Use specific physical objects/tools (e.g., "hammer" not "tool", "chef's knife" not "equipment")
+- Use specific rooms (e.g., "kitchen" not "room", "operating theater" not "medical facility")
+- Use specific people or occupations (e.g., "surgeon" not "medical professional", "quarterback" not "player")
+
+AVOID vague or categorical terms like "equipment", "supplies", "materials", "tools", "items", etc.
+
+Examples of good components:
+- For "Sanding wood": "sandpaper", "wooden plank", "workbench"
+- For "Performing surgery": "scalpel", "surgical gloves", "operating theater"
+- For "Baking cookies": "mixing bowl", "cookie sheet", "oven"
+
 IMPORTANT: Each component must be unique - do not repeat any component.`;
 
       const response = await this.openai.completions.create({
@@ -107,12 +120,25 @@ Format the response as a JSON array with the following structure:
 "${activity.activityVerb}" with components: ${activity.selectedComponents.join(", ")}
 
 Create a simpler version with 2-3 components that are easier to understand and act out.
+
+IMPORTANT: The components must be SPECIFIC, TANGIBLE objects, roles, or locations that would logically be used in the activity.
+- Use specific physical objects/tools (e.g., "hammer" not "tool", "chef's knife" not "equipment")
+- Use specific rooms (e.g., "kitchen" not "room", "operating theater" not "medical facility")
+- Use specific people or occupations (e.g., "surgeon" not "medical professional", "quarterback" not "player")
+
+AVOID vague or categorical terms like "equipment", "supplies", "materials", "tools", "items", etc.
+
+Examples of good components:
+- For "Sanding wood": "sandpaper", "wooden plank", "workbench"
+- For "Performing surgery": "scalpel", "surgical gloves", "operating theater"
+- For "Baking cookies": "mixing bowl", "cookie sheet", "oven"
+
 IMPORTANT: Each component must be unique - do not repeat any component.
 
 Format the response as a JSON object with the following structure:
 {
   "activityVerb": "The simplified activity",
-  "components": ["simpler component1", "simpler component2", "simpler component3"]
+  "components": ["specific component1", "specific component2", "specific component3"]
 }`;
 
       const response = await this.openai.completions.create({

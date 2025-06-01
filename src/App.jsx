@@ -6,7 +6,7 @@ import { getUniqueRandomComponent } from './utils/componentReplacer';
 import { 
   initializeUsedWordsStorage, 
   addUsedWords, 
-  getUsedWordsCount 
+  getUsedWordsCount
 } from './utils/wordStorage';
 
 function App() {
@@ -30,10 +30,10 @@ function App() {
     setIsLoading(true);
     try {
       // Generate a statement with the selected number of components
-      let statement = await generateStatement(componentCount);
+      let statement = await generateStatement(componentCount, usedWords);
       
       // Ensure all components are unique
-      statement = ensureUniqueComponents(statement);
+      statement = ensureUniqueComponents(statement, usedWords);
       
       setOriginalStatement(statement);
       
@@ -44,9 +44,16 @@ function App() {
         
         // Add new words to the used words set and persist to localStorage
         if (replacements && replacements.length > 0) {
-          const newWords = replacements
+          // Add the activity verb to used words
+          let newWords = [statement.activityVerb.toLowerCase()];
+          
+          // Add all components to used words
+          newWords = [...newWords, ...statement.selectedComponents.map(comp => comp.toLowerCase())];
+          
+          // Add all replacements to used words
+          newWords = [...newWords, ...replacements
             .filter(pair => pair && pair.replacement)
-            .map(pair => pair.replacement.toLowerCase());
+            .map(pair => pair.replacement.toLowerCase())];
           
           const updatedUsedWords = addUsedWords(newWords);
           setUsedWords(updatedUsedWords);
@@ -106,7 +113,8 @@ function App() {
       // Get a new component that's logical for the activity and not already used
       const newComponent = getUniqueRandomComponent(
         originalStatement.activityVerb, 
-        currentComponents
+        currentComponents,
+        usedWords
       );
       
       // Create a new statement object with the updated component
@@ -128,6 +136,10 @@ function App() {
       };
       
       setWordPairs(updatedWordPairs);
+      
+      // Add the new component to the used words set
+      const updatedUsedWords = addUsedWords(newComponent.toLowerCase());
+      setUsedWords(updatedUsedWords);
       
     } catch (error) {
       console.error('Error replacing component:', error);
@@ -255,7 +267,7 @@ function App() {
       </div>
       
       <div className="word-tracking">
-        <small>Unique words used: {usedWordsCount}/1000</small>
+        <small>Unique words used: {usedWordsCount}/10000</small>
       </div>
     </div>
   );
