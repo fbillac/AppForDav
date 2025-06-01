@@ -25,7 +25,7 @@ const activityComponentMap = {
   "planting": ["seed packet", "potting soil", "terracotta pot", "trowel", "watering can", "gardening gloves", "fertilizer", "plant label", "spray bottle", "pruning shears", "seedling", "bulb", "root ball", "garden bed", "compost", "mulch", "plant stake", "garden twine"],
   
   // Cleaning activities
-  "cleaning": ["vacuum cleaner", "mop", "broom", "feather duster", "microfiber cloth", "cleaning spray", "bucket", "sponge", "rubber gloves", "dish soap", "laundry detergent", "scrub brush", "toilet brush", "trash bag", "paper towel roll", "plunger", "window squeegee", "bleach bottle"],
+  "cleaning": ["vacuum cleaner", "mop", "cleaning person", "broom", "feather duster", "microfiber cloth", "cleaning spray", "bucket", "sponge", "rubber gloves", "dish soap", "laundry detergent", "scrub brush", "toilet brush", "trash bag", "paper towel roll", "plunger", "window squeegee", "bleach bottle"],
   
   // Sports/Exercise activities
   "playing": ["baseball", "baseball bat", "tennis racket", "volleyball net", "soccer goal", "basketball hoop", "catcher's mitt", "hockey helmet", "knee pads", "team jersey", "referee whistle", "scoreboard", "playing field", "tennis court", "stopwatch", "referee", "teammate", "opponent"],

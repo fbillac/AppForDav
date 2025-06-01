@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import CountdownOverlay from './CountdownOverlay';
 
 function Timer({ darkMode }) {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [duration, setDuration] = useState(60); // Default 60 seconds
+  const [showCountdown, setShowCountdown] = useState(false);
   const intervalRef = useRef(null);
   const audioRef = useRef(null);
 
@@ -20,6 +22,11 @@ function Timer({ darkMode }) {
         setTime(prevTime => {
           const newTime = prevTime + 1;
           const timeRemaining = duration - newTime;
+          
+          // Show countdown overlay when 10 seconds remain
+          if (timeRemaining === 10) {
+            setShowCountdown(true);
+          }
           
           // Play buzzer when timer reaches zero
           if (timeRemaining <= 0) {
@@ -47,6 +54,7 @@ function Timer({ darkMode }) {
     clearInterval(intervalRef.current);
     setIsRunning(false);
     setTime(0);
+    setShowCountdown(false);
   };
 
   const handleDurationChange = (e) => {
@@ -57,6 +65,10 @@ function Timer({ darkMode }) {
         setTime(value);
       }
     }
+  };
+
+  const handleCountdownComplete = () => {
+    setShowCountdown(false);
   };
 
   useEffect(() => {
@@ -113,6 +125,15 @@ function Timer({ darkMode }) {
         <source src="/nba-horn-sfx.mp3" type="audio/mpeg" />
         Your browser does not support the audio element.
       </audio>
+
+      {/* Countdown overlay */}
+      {showCountdown && (
+        <CountdownOverlay 
+          initialCount={10} 
+          onComplete={handleCountdownComplete}
+          darkMode={darkMode}
+        />
+      )}
     </div>
   );
 }

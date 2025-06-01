@@ -14,6 +14,11 @@
   --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   --border-radius: 8px;
   --transition-speed: 0.3s;
+  --overlay-background: rgba(0, 0, 0, 0.85);
+  --overlay-text-color: #ffffff;
+  --explosion-color-1: #ff5252;
+  --explosion-color-2: #ffeb3b;
+  --explosion-color-3: #ff9800;
 }
 
 body.dark-mode {
@@ -22,6 +27,8 @@ body.dark-mode {
   --card-background: #1e1e1e;
   --border-color: #333;
   --shadow-color: rgba(0, 0, 0, 0.3);
+  --overlay-background: rgba(0, 0, 0, 0.9);
+  --overlay-text-color: #ffffff;
 }
 
 * {
@@ -315,6 +322,7 @@ h1 {
   padding: 15px 20px;
   box-shadow: 0 4px 6px var(--shadow-color);
   margin-bottom: 20px;
+  position: relative;
 }
 
 .timer-display {
@@ -415,6 +423,117 @@ h1 {
   margin-top: 10px;
 }
 
+/* Countdown Overlay Styles */
+.countdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--overlay-background);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.countdown-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.countdown-number {
+  font-size: 15rem;
+  font-weight: bold;
+  color: var(--overlay-text-color);
+  text-align: center;
+  animation: countdownPulse 1s infinite;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.countdown-number.critical {
+  color: var(--primary-color);
+  animation: criticalPulse 0.5s infinite;
+  font-size: 20rem;
+}
+
+@keyframes countdownPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes criticalPulse {
+  0% { transform: scale(1); text-shadow: 0 0 20px rgba(231, 76, 60, 0.5); }
+  50% { transform: scale(1.1); text-shadow: 0 0 40px rgba(231, 76, 60, 0.8); }
+  100% { transform: scale(1); text-shadow: 0 0 20px rgba(231, 76, 60, 0.5); }
+}
+
+/* Explosion Effect */
+.explosion-effect {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.explosion-circle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: var(--explosion-color-1);
+  border-radius: 50%;
+  animation: explode 1.5s ease-out forwards;
+}
+
+.explosion-text {
+  font-size: 5rem;
+  font-weight: bold;
+  color: var(--overlay-text-color);
+  text-align: center;
+  opacity: 0;
+  animation: fadeInText 0.5s 0.5s forwards;
+  text-shadow: 0 0 30px var(--explosion-color-1);
+}
+
+@keyframes explode {
+  0% {
+    width: 10px;
+    height: 10px;
+    opacity: 1;
+    box-shadow: 
+      0 0 20px 10px var(--explosion-color-1),
+      0 0 40px 20px var(--explosion-color-2),
+      0 0 60px 30px var(--explosion-color-3);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 
+      0 0 40px 20px var(--explosion-color-1),
+      0 0 80px 40px var(--explosion-color-2),
+      0 0 120px 60px var(--explosion-color-3);
+  }
+  100% {
+    width: 1000px;
+    height: 1000px;
+    opacity: 0;
+    box-shadow: 
+      0 0 100px 50px var(--explosion-color-1),
+      0 0 200px 100px var(--explosion-color-2),
+      0 0 300px 150px var(--explosion-color-3);
+  }
+}
+
+@keyframes fadeInText {
+  0% { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 /* Responsive styles */
 @media (max-width: 768px) {
   .app-container {
@@ -474,5 +593,17 @@ h1 {
   
   .arrow {
     display: none;
+  }
+  
+  .countdown-number {
+    font-size: 8rem;
+  }
+  
+  .countdown-number.critical {
+    font-size: 10rem;
+  }
+  
+  .explosion-text {
+    font-size: 3rem;
   }
 }
