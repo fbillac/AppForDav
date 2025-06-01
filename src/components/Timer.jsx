@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-function Timer() {
+function Timer({ darkMode }) {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [duration, setDuration] = useState(60); // Default 60 seconds
   const intervalRef = useRef(null);
+  const audioRef = useRef(null);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -17,12 +18,19 @@ function Timer() {
       setIsRunning(true);
       intervalRef.current = setInterval(() => {
         setTime(prevTime => {
-          if (prevTime >= duration) {
+          const newTime = prevTime + 1;
+          const timeRemaining = duration - newTime;
+          
+          // Play buzzer when timer reaches zero
+          if (timeRemaining <= 0) {
             clearInterval(intervalRef.current);
             setIsRunning(false);
+            if (audioRef.current) {
+              audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+            }
             return duration;
           }
-          return prevTime + 1;
+          return newTime;
         });
       }, 1000);
     }
@@ -59,9 +67,22 @@ function Timer() {
     };
   }, []);
 
+  const timeRemaining = duration - time;
+  const progressPercentage = (time / duration) * 100;
+  const isAlmostFinished = timeRemaining <= 10;
+
   return (
-    <div className="timer-container">
-      <div className="timer-display">{formatTime(time)}</div>
+    <div className={`timer-container ${darkMode ? 'dark-mode' : ''}`}>
+      <div className={`timer-display ${isAlmostFinished ? 'timer-warning' : ''}`}>
+        {formatTime(timeRemaining)}
+      </div>
+      
+      <div className="timer-progress">
+        <div 
+          className="timer-progress-bar" 
+          style={{ width: `${progressPercentage}%` }}
+        ></div>
+      </div>
       
       <div className="timer-controls">
         <button onClick={startTimer} disabled={isRunning || time >= duration}>
@@ -86,6 +107,12 @@ function Timer() {
           disabled={isRunning}
         />
       </div>
+
+      {/* NBA horn sound for buzzer */}
+      <audio ref={audioRef} preload="auto">
+        <source src="/nba-horn-sfx.mp3" type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
     </div>
   );
 }

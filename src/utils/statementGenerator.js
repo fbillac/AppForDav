@@ -1,5 +1,6 @@
 // Statement generator using OpenAI or fallback to local data
 import openAIService from './openaiService';
+import { generateUniqueComponents } from './componentReplacer';
 
 // Activities with components - all physically demonstrable for charades
 const fullActivities = [
@@ -301,4 +302,30 @@ const fallbackGenerateStatement = async (numToReplace = 0) => {
   // Create a statement with only the specified number of components
   // This now returns an object with activityVerb and selectedComponents
   return createStatementWithComponents(activityVerb, components, numToReplace);
+};
+
+// Ensure a statement has unique components
+export const ensureUniqueComponents = (statement) => {
+  if (!statement || !statement.activityVerb || !statement.selectedComponents) {
+    return statement;
+  }
+  
+  // Check if there are any duplicate components
+  const uniqueComponents = new Set(statement.selectedComponents);
+  
+  // If there are no duplicates, return the original statement
+  if (uniqueComponents.size === statement.selectedComponents.length) {
+    return statement;
+  }
+  
+  // If there are duplicates, generate new unique components
+  const newComponents = generateUniqueComponents(
+    statement.activityVerb, 
+    statement.selectedComponents.length
+  );
+  
+  return {
+    ...statement,
+    selectedComponents: newComponents
+  };
 };

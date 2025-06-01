@@ -1,26 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import Timer from './components/Timer';
-import { generateStatement } from './utils/statementGenerator';
+import { generateStatement, ensureUniqueComponents } from './utils/statementGenerator';
 import { replaceWords, getRandomReplacement } from './utils/wordReplacer';
-import { simplifyStatement, simplifyReplacements } from './utils/simplifier';
-import { getRandomComponent } from './utils/componentReplacer';
+import { getUniqueRandomComponent } from './utils/componentReplacer';
 
 function App() {
   const [originalStatement, setOriginalStatement] = useState(null);
   const [replacedStatement, setReplacedStatement] = useState('');
   const [wordPairs, setWordPairs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSimplifying, setIsSimplifying] = useState(false);
   const [usedWords, setUsedWords] = useState(new Set());
   const [isReplacingWord, setIsReplacingWord] = useState(false);
   const [isReplacingComponent, setIsReplacingComponent] = useState(false);
-  const [simplifyType, setSimplifyType] = useState('both'); // 'both', 'activity', or 'replacements'
+  const [componentCount, setComponentCount] = useState(3); // Default to 3 components
+  const [darkMode, setDarkMode] = useState(false);
   
   const generateNewThing = async () => {
     setIsLoading(true);
     try {
-      // Generate a statement with a random number of components (2-4)
-      const statement = await generateStatement(0); // 0 means auto (2-4)
+      // Generate a statement with the selected number of components
+      let statement = await generateStatement(componentCount);
+      
+      // Ensure all components are unique
+      statement = ensureUniqueComponents(statement);
+      
       setOriginalStatement(statement);
       
       if (statement && statement.activityVerb) {
@@ -59,7 +62,7 @@ function App() {
   };
 
   const handleReplaceWord = async (index) => {
-    if (isLoading || isSimplifying || isReplacingWord) return;
+    if (isLoading || isReplacingWord) return;
     
     setIsReplacingWord(true);
     
@@ -89,16 +92,22 @@ function App() {
   };
 
   const handleReplaceComponent = async (index) => {
-    if (isLoading || isSimplifying || isReplacingComponent || !originalStatement) return;
+    if (isLoading || isReplacingComponent || !originalStatement) return;
     
     setIsReplacingComponent(true);
     
     try {
-      // Get a new component that's logical for the activity
-      const newComponent = getRandomComponent(originalStatement.activityVerb);
+      // Get the current components to avoid duplicates
+      const currentComponents = [...originalStatement.selectedComponents];
+      
+      // Get a new component that's logical for the activity and not already used
+      const newComponent = getUniqueRandomComponent(
+        originalStatement.activityVerb, 
+        currentComponents
+      );
       
       // Create a new statement object with the updated component
-      const updatedComponents = [...originalStatement.selectedComponents];
+      const updatedComponents = [...currentComponents];
       updatedComponents[index] = newComponent;
       
       const updatedStatement = {
@@ -131,120 +140,80 @@ function App() {
     }
   };
 
-  const handleSimplifyTypeChange = (e) => {
-    setSimplifyType(e.target.value);
+  const handleComponentCountChange = (e) => {
+    setComponentCount(parseInt(e.target.value, 10));
   };
 
-  const handleSimplify = async () => {
-    if (isLoading || isSimplifying || !originalStatement) return;
-    
-    setIsSimplifying(true);
-    
-    try {
-      if (simplifyType === 'both' || simplifyType === 'activity') {
-        // Simplify the entire statement (activity and components)
-        const simplifiedStatement = await simplifyStatement(originalStatement, usedWords);
-        
-        if (simplifiedStatement) {
-          setOriginalStatement(simplifiedStatement);
-          
-          // Generate new replacements for the simplified components
-          const { replacedText, replacements } = await replaceWords(simplifiedStatement, usedWords);
-          setReplacedStatement(replacedText);
-          setWordPairs(replacements);
-          
-          // Update used words
-          const newUsedWords = new Set(usedWords);
-          if (replacements && replacements.length > 0) {
-            replacements.forEach(pair => {
-              if (pair && pair.replacement) {
-                newUsedWords.add(pair.replacement.toLowerCase());
-              }
-            });
-          }
-          setUsedWords(newUsedWords);
-        }
-      } else if (simplifyType === 'replacements') {
-        // Only simplify the replacements, keep the original activity and components
-        const simplifiedReplacements = await simplifyReplacements(wordPairs, usedWords);
-        
-        if (simplifiedReplacements && simplifiedReplacements.length > 0) {
-          setWordPairs(simplifiedReplacements);
-          
-          // Update used words
-          const newUsedWords = new Set(usedWords);
-          simplifiedReplacements.forEach(pair => {
-            if (pair && pair.replacement) {
-              newUsedWords.add(pair.replacement.toLowerCase());
-            }
-          });
-          setUsedWords(newUsedWords);
-        }
-      }
-    } catch (error) {
-      console.error('Error simplifying:', error);
-    } finally {
-      setIsSimplifying(false);
-    }
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    document.body.classList.toggle('dark-mode');
   };
 
   useEffect(() => {
     generateNewThing();
+    
+    // Check for user's preferred color scheme
+    const prefersDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (prefersDarkMode) {
+      setDarkMode(true);
+      document.body.classList.add('dark-mode');
+    }
   }, []);
 
   return (
-    <div className="app-container">
-      <h1>The Things Generator</h1>
+    <div className={`app-container ${darkMode ? 'dark-mode' : ''}`}>
+      <div className="header-container">
+        <h1>The Things Generator</h1>
+        <button 
+          className="theme-toggle-btn" 
+          onClick={toggleDarkMode}
+          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {darkMode ? "☀️" : "🌙"}
+        </button>
+      </div>
       
       <div className="statement-container">
-        {isLoading || isSimplifying ? (
+        {isLoading ? (
           <div className="loading">
             <div className="loading-spinner"></div>
-            <p>{isSimplifying ? 'Simplifying...' : 'Loading...'}</p>
+            <p>Loading...</p>
           </div>
         ) : (
           <p className="activity-text">{originalStatement?.activityVerb || ''}</p>
         )}
       </div>
       
-      {!isLoading && !isSimplifying && originalStatement && originalStatement.selectedComponents && (
-        <div className="components-container">
-          <h3>Components:</h3>
-          <ul className="components-list">
-            {originalStatement.selectedComponents.map((component, index) => (
-              <li key={`component-${index}`} className="component-item">
-                <span className="component-text">{component}</span>
-                <button 
-                  className="replace-btn" 
-                  onClick={() => handleReplaceComponent(index)}
-                  disabled={isReplacingComponent}
-                  title="Get new component"
-                >
-                  ↻
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      
-      {!isLoading && !isSimplifying && wordPairs && wordPairs.length > 0 && (
+      {!isLoading && wordPairs && wordPairs.length > 0 && (
         <div className="word-replacements">
           <h3>Replacements:</h3>
           <ul>
             {wordPairs.map((pair, index) => (
-              <li key={index} className="word-pair">
-                <span className="original">{pair.original}</span> → 
-                <div className="replacement-wrapper">
-                  <span className="replacement">{pair.replacement}</span>
-                  <button 
-                    className="replace-btn" 
-                    onClick={() => handleReplaceWord(index)}
-                    disabled={isReplacingWord}
-                    title="Get new replacement"
-                  >
-                    ↻
-                  </button>
+              <li key={`word-${index}`} className="word-pair">
+                <div className="item-content">
+                  <div className="pair-group">
+                    <span className="original">{pair.original}</span>
+                    <button 
+                      className="replace-btn component-btn" 
+                      onClick={() => handleReplaceComponent(index)}
+                      disabled={isReplacingComponent}
+                      title="Get new component"
+                    >
+                      ↻
+                    </button>
+                  </div>
+                  <span className="arrow">→</span>
+                  <div className="pair-group">
+                    <span className="replacement">{pair.replacement}</span>
+                    <button 
+                      className="replace-btn" 
+                      onClick={() => handleReplaceWord(index)}
+                      disabled={isReplacingWord}
+                      title="Get new replacement"
+                    >
+                      ↻
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -254,35 +223,36 @@ function App() {
       
       <div className="controls">
         <div className="control-group">
-          <div className="simplify-controls">
-            <label htmlFor="simplifyType">Simplify:</label>
-            <select 
-              id="simplifyType" 
-              value={simplifyType} 
-              onChange={handleSimplifyTypeChange}
-              disabled={isLoading || isSimplifying}
-            >
-              <option value="both">Both Activity & Replacements</option>
-              <option value="activity">Activity Only</option>
-              <option value="replacements">Replacements Only</option>
-            </select>
-            
+          <div className="component-count-controls">
+            <label htmlFor="componentCount">Number of Components:</label>
+            <div className="component-count-selector">
+              <input 
+                type="range" 
+                id="componentCount" 
+                min="2" 
+                max="5" 
+                value={componentCount} 
+                onChange={handleComponentCountChange}
+                disabled={isLoading}
+              />
+              <span className="component-count-value">{componentCount}</span>
+            </div>
             <button 
-              className="simplify-btn" 
-              onClick={handleSimplify}
-              disabled={isLoading || isSimplifying || !originalStatement}
+              className="apply-count-btn" 
+              onClick={generateNewThing}
+              disabled={isLoading}
             >
-              {isSimplifying ? 'Simplifying...' : 'Make It Simpler'}
+              Apply
             </button>
           </div>
         </div>
         
-        <Timer />
+        <Timer darkMode={darkMode} />
         
         <button 
           className="new-thing-btn" 
           onClick={generateNewThing}
-          disabled={isLoading || isSimplifying}
+          disabled={isLoading}
         >
           {isLoading ? 'Generating...' : 'New Thing'}
         </button>

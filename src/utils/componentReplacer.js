@@ -168,5 +168,50 @@ export const getRandomComponent = (activityVerb) => {
   return components[randomIndex];
 };
 
+// Get a random component that is appropriate for the activity and not already used
+export const getUniqueRandomComponent = (activityVerb, existingComponents = []) => {
+  // Determine the activity type
+  const activityType = determineActivityType(activityVerb);
+  
+  // Get the appropriate components for this activity type
+  const allComponents = activityComponentMap[activityType] || activityComponentMap["default"];
+  
+  // Filter out components that are already in use
+  const availableComponents = allComponents.filter(component => 
+    !existingComponents.includes(component)
+  );
+  
+  // If we've exhausted all components for this activity type, fall back to the default category
+  if (availableComponents.length === 0) {
+    const defaultComponents = activityComponentMap["default"].filter(component => 
+      !existingComponents.includes(component)
+    );
+    
+    // If even the default category is exhausted, generate a completely unique component
+    if (defaultComponents.length === 0) {
+      return `${activityType} item ${Math.floor(Math.random() * 1000)}`;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * defaultComponents.length);
+    return defaultComponents[randomIndex];
+  }
+  
+  // Choose a random component from the available ones
+  const randomIndex = Math.floor(Math.random() * availableComponents.length);
+  return availableComponents[randomIndex];
+};
+
+// Generate a set of unique components for an activity
+export const generateUniqueComponents = (activityVerb, count = 3) => {
+  const components = [];
+  
+  for (let i = 0; i < count; i++) {
+    const component = getUniqueRandomComponent(activityVerb, components);
+    components.push(component);
+  }
+  
+  return components;
+};
+
 // Export the activity component map for testing or other uses
 export { activityComponentMap, determineActivityType };

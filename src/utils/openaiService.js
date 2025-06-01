@@ -37,7 +37,8 @@ Format the response as a JSON object with the following structure:
   "activityVerb": "The activity (e.g., 'Building a house')",
   "components": ["component1", "component2", "component3"]
 }
-The activity must be something that can be physically acted out. The components must be physical objects that would logically be used in the activity.`;
+The activity must be something that can be physically acted out. The components must be physical objects that would logically be used in the activity.
+IMPORTANT: Each component must be unique - do not repeat any component.`;
 
       const response = await this.openai.completions.create({
         model: "gpt-3.5-turbo-instruct",
@@ -71,6 +72,7 @@ Rules:
 2. Words should be appropriate for 10th grade reading level
 3. Words should NOT include "and"
 4. Words should NOT be in this list: ${usedWordsArray.slice(0, 50).join(", ")}
+5. Each replacement must be UNIQUE - do not repeat any word
 
 Format the response as a JSON array with the following structure:
 [
@@ -104,6 +106,8 @@ Format the response as a JSON array with the following structure:
 "${activity.activityVerb}" with components: ${activity.selectedComponents.join(", ")}
 
 Create a simpler version with 2-3 components that are easier to understand and act out.
+IMPORTANT: Each component must be unique - do not repeat any component.
+
 Format the response as a JSON object with the following structure:
 {
   "activityVerb": "The simplified activity",
