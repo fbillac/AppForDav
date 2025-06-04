@@ -44,8 +44,8 @@ function App() {
         
         // Add new words to the used words set and persist to localStorage
         if (replacements && replacements.length > 0) {
-          // Add the activity verb to used words
-          let newWords = [statement.activityVerb.toLowerCase()];
+          // Add all words from the activity verb to used words
+          let newWords = statement.activityVerb.toLowerCase().split(/\s+/);
           
           // Add all components to used words
           newWords = [...newWords, ...statement.selectedComponents.map(comp => comp.toLowerCase())];
@@ -78,8 +78,14 @@ function App() {
     setIsReplacingWord(true);
     
     try {
+      // Check if the component is a person/role
+      const isPerson = originalStatement && 
+                      originalStatement.selectedComponents && 
+                      index < originalStatement.selectedComponents.length && 
+                      require('./utils/componentReplacer').isPersonOrRole(originalStatement.selectedComponents[index]);
+      
       // Get a new random replacement that hasn't been used before
-      const newReplacement = getRandomReplacement(usedWords);
+      const newReplacement = getRandomReplacement(usedWords, isPerson);
       
       // Update the word pair at the specified index
       const updatedWordPairs = [...wordPairs];

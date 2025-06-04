@@ -1,9 +1,10 @@
 // Word replacement utility using OpenAI or fallback to local data
 import openAIService from './openaiService';
+import { isPersonOrRole, getRandomCelebrityOrCharacter } from './componentReplacer';
 
-// 10th grade level words (appropriate for 10th grade reading level)
+// 10th grade level words (appropriate for 10th grade reading level) - all visually demonstrable
 const tenthGradeWords = [
-  // Common nouns at 10th grade level or below
+  // Common nouns that can be easily mimed
   "banana", "unicorn", "spaceship", "pickle", "dinosaur", "robot", "wizard", 
   "flamingo", "toaster", "volcano", "penguin", "cactus", "zombie", "pirate", 
   "ninja", "cupcake", "mermaid", "vampire", "werewolf", "goblin",
@@ -84,7 +85,7 @@ const tenthGradeWords = [
   "brochure", "catalog", "magazine", "newspaper", "newsletter", "flyer", "poster", "notice", "announcement", "report", "plan", "schedule", "agenda", "calendar",
 
   
-  // Proper nouns appropriate for 10th grade (20% of list)
+  // Proper nouns appropriate for 10th grade that are easily mimeable (20% of list)
   "Batman", "Hogwarts", "Narnia", "Wakanda", "Mordor", "Gotham", "Atlantis",
   "Disney", "Nintendo", "Tesla", "Godzilla", "Pikachu", "Yoda", "Gandalf",
   "iPhone", "PlayStation", "Alexa", "Roomba", "Fitbit", "GoPro", "Kindle",
@@ -131,7 +132,13 @@ const identifyNouns = (statement) => {
 
 // Get a random word from the replacement list that hasn't been used before
 // and doesn't contain "and"
-export const getRandomReplacement = (usedWords) => {
+export const getRandomReplacement = (usedWords, isPersonComponent = false) => {
+  // If this is a person/role component, return a celebrity or character
+  if (isPersonComponent) {
+    return getRandomCelebrityOrCharacter(usedWords);
+  }
+  
+  // Otherwise, use the standard word replacement logic
   // Convert usedWords to lowercase for case-insensitive comparison
   const usedWordsLower = new Set(Array.from(usedWords).map(word => word.toLowerCase()));
   
@@ -329,8 +336,30 @@ const fallbackReplaceWords = async (statement, usedWords) => {
   // Create replacements for each component
   const replacements = [];
   
+  // Track if we've already used a celebrity/character in this set of replacements
+  let usedCelebrityForThisActivity = false;
+  
   for (const component of selectedComponents) {
-    const replacement = getRandomReplacement(usedWords);
+    // Check if the component is a person/role
+    const isPerson = isPersonOrRole(component);
+    
+    // Get appropriate replacement based on component type
+    let replacement;
+    
+    if (isPerson) {
+      // If this is a person component and we haven't used a celebrity yet for this activity,
+      // use a celebrity replacement
+      if (!usedCelebrityForThisActivity) {
+        replacement = getRandomCelebrityOrCharacter(usedWords);
+        usedCelebrityForThisActivity = true;
+      } else {
+        // Otherwise, use a regular word replacement
+        replacement = getRandomReplacement(usedWords, false);
+      }
+    } else {
+      // For non-person components, always use regular word replacements
+      replacement = getRandomReplacement(usedWords, false);
+    }
     
     replacements.push({
       original: component,

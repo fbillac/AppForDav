@@ -29,9 +29,25 @@ export const addUsedWords = (words) => {
     
     // Add the new words
     if (Array.isArray(words)) {
-      words.forEach(word => usedWords.add(word));
-    } else {
-      usedWords.add(words);
+      words.forEach(word => {
+        // Split multi-word strings into individual words
+        if (typeof word === 'string' && word.includes(' ')) {
+          word.split(/\s+/).forEach(w => {
+            if (w.trim()) usedWords.add(w.trim().toLowerCase());
+          });
+        } else if (word && typeof word === 'string') {
+          usedWords.add(word.toLowerCase());
+        }
+      });
+    } else if (words && typeof words === 'string') {
+      // Split multi-word strings into individual words
+      if (words.includes(' ')) {
+        words.split(/\s+/).forEach(w => {
+          if (w.trim()) usedWords.add(w.trim().toLowerCase());
+        });
+      } else {
+        usedWords.add(words.toLowerCase());
+      }
     }
     
     // Persist to localStorage
@@ -55,5 +71,16 @@ export const getUsedWordsCount = () => {
   } catch (error) {
     console.error('Error getting used words count:', error);
     return 0;
+  }
+};
+
+// Clear all used words (for testing purposes)
+export const clearUsedWords = () => {
+  try {
+    localStorage.removeItem('usedWords');
+    return new Set();
+  } catch (error) {
+    console.error('Error clearing used words:', error);
+    return new Set();
   }
 };
