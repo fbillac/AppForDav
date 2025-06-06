@@ -1,377 +1,444 @@
-// Word replacement utility using OpenAI or fallback to local data
+// This module handles replacing words with unrelated ones for humor and challenge
+import { isPersonOrRole, getRandomCelebrityOrCharacter, getRandomMaterial } from './componentReplacer';
+import { checkReplacementExistsUnified, addReplacementUnified } from './repetitionPrevention';
 import openAIService from './openaiService';
-import { isPersonOrRole, getRandomCelebrityOrCharacter } from './componentReplacer';
 
-// 10th grade level words (appropriate for 10th grade reading level) - all visually demonstrable
-const tenthGradeWords = [
-  // Common nouns that can be easily mimed
-  "banana", "unicorn", "spaceship", "pickle", "dinosaur", "robot", "wizard", 
-  "flamingo", "toaster", "volcano", "penguin", "cactus", "zombie", "pirate", 
-  "ninja", "cupcake", "mermaid", "vampire", "werewolf", "goblin",
-  "potato", "hamburger", "octopus", "jellyfish", "raccoon", "helicopter", "submarine",
-  "bulldozer", "catapult", "trampoline", "watermelon", "pineapple", "coconut", "avocado",
-  "skateboard", "rollercoaster", "parachute", "snowman", "bubblegum", "lollipop", "marshmallow",
-  "accordion", "tambourine", "harmonica", "telescope", "microscope", "calculator", "compass",
-  "umbrella", "backpack", "hammock", "chandelier", "refrigerator", "blender", "microwave",
-  "monster", "dragon", "alien", "ghost", "witch", "giant", "dwarf", "elf",
-  "treasure", "diamond", "emerald", "ruby", "sapphire", "crystal", "meteor", "asteroid",
-  "tornado", "hurricane", "earthquake", "tsunami", "avalanche", "crater",
-  "jungle", "desert", "forest", "mountain", "valley", "canyon", "island", "ocean",
-  "castle", "palace", "mansion", "cottage", "cabin", "fortress", "dungeon", "laboratory",
-  "potion", "elixir", "antidote", "poison", "venom", "medicine", "remedy", "cure",
-  "sword", "shield", "armor", "helmet", "dagger", "spear", "bow", "arrow", "axe",
-  "wand", "staff", "scepter", "crown", "throne", "kingdom", "empire", "realm",
-  "monster", "beast", "creature", "animal", "insect", "reptile", "mammal", "bird",
-  "vehicle", "machine", "device", "gadget", "contraption", "invention", "creation",
-  "balloon", "puppet", "magnet", "battery", "candle", "lantern", "compass", "telescope",
-  "whistle", "trumpet", "guitar", "piano", "violin", "drum", "flute", "saxophone",
-  "camera", "binoculars", "flashlight", "mirror", "ladder", "bucket", "basket", "pillow",
-  "blanket", "mattress", "curtain", "carpet", "cushion", "cabinet", "drawer", "shelf",
-  "bottle", "glass", "plate", "bowl", "spoon", "fork", "knife", "napkin",
-  "jacket", "sweater", "t-shirt", "pants", "shorts", "skirt", "dress", "hat",
-  "gloves", "scarf", "boots", "sandals", "sneakers", "socks", "belt", "backpack",
-  "wallet", "purse", "necklace", "bracelet", "ring", "earrings", "watch", "sunglasses",
-  "pencil", "marker", "crayon", "paintbrush", "notebook", "textbook", "dictionary", "magazine",
-  "newspaper", "envelope", "stamp", "postcard", "calendar", "poster", "sticker", "magnet",
-  "balloon", "kite", "frisbee", "yo-yo", "puzzle", "doll", "action figure", "teddy bear",
-  "bicycle", "scooter", "skateboard", "sled", "wagon", "canoe", "kayak", "surfboard",
-  "football", "baseball", "basketball", "soccer ball", "tennis ball", "golf ball", "bowling ball", "hockey puck",
-  "apple", "orange", "banana", "grape", "strawberry", "blueberry", "raspberry", "pineapple",
-  "carrot", "potato", "tomato", "lettuce", "broccoli", "cucumber", "onion", "garlic",
-  "chicken", "turkey", "duck", "goose", "cow", "pig", "sheep", "goat",
-  "dog", "cat", "rabbit", "hamster", "guinea pig", "turtle", "fish", "bird", "apple", "banana", 
-  "chair", "table", "lamp", "pen", "pencil", "notebook", "book", "phone", "television", "laptop", 
-  "mouse", "keyboard", "monitor", "cup", "glass", "bottle", "plate", "fork", "spoon", "knife", "napkin", 
-  "bed", "pillow", "blanket", "sheet", "towel", "soap", "shampoo", "conditioner", "toothbrush", "toothpaste", 
-  "comb", "brush", "mirror", "clock", "watch", "wallet", "bag", "backpack", "suitcase", "umbrella", "hat", "scarf", 
-  "gloves", "jacket", "shirt", "pants", "shorts", "shoes", "socks", "belt", "tie", "dress", "skirt", "fan", "heater", 
-  "air conditioner", "remote", "charger", "earphones", "headphones", "camera", "microphone", "speaker", "tripod", "stapler", 
-  "paper", "envelope", "stamp", "marker", "highlighter", "ruler", "scissors", "tape", "glue", "calculator", "calendar", "file", 
-  "folder", "cabinet", "desk", "drawer", "couch", "sofa", "rug", "carpet", "vase", "plant", "flower", "curtain", "blinds",
-  "window", "door", "lock", "key", "doormat", "broom", "mop", "bucket", "vacuum", "dustpan", "sponge", "detergent", "cleaner",
-  "lightbulb", "switch", "outlet", "extension cord", "plug", "battery", "fan", "thermometer", "scale", "iron", "ironing board",
-  "sewing kit", "needle", "thread", "button", "zipper", "safety pin", "tape measure", "ladder", "toolbox", "hammer",
-  "screwdriver", "wrench", "pliers", "drill", "nail", "screw", "bolt", "saw", "level", "paint", "brush", "roller",
-  "bucket", "hose", "sprinkler", "shovel", "rake", "hoe", "wheelbarrow", "lawnmower", "trash can", "recycling bin",
-  "bin", "bag", "box", "crate", "basket", "tray", "bowl", "pan", "pot", "lid", "oven", "microwave", "toaster", "kettle",
-  "blender", "mixer", "grater", "peeler", "whisk", "spatula", "ladle", "tongs", "strainer", "colander", "cutting board",
-  "measuring cup", "measuring spoon", "thermos", "pitcher", "cooler", "freezer", "fridge", "stove", "grill", "dish",
-  "snack", "cereal", "bread", "butter", "jam", "milk", "cheese", "egg", "meat", "fish", "vegetable", "fruit", "rice",
-  "pasta", "sauce", "salt", "pepper", "sugar", "oil", "vinegar", "honey", "tea", "coffee", "mug", "can", "jar",
-  "container", "lid", "wrap", "foil", "bag clip", "coaster", "placemat", "candle", "match", "lighter", "incense",
-  "ashtray", "picture", "frame", "photo", "poster", "clock", "alarm", "calendar", "map", "globe", "trophy", "medal",
-  "award", "toy", "doll", "ball", "puzzle", "game", "board game", "card", "dice", "block", "car", "truck", "bus", "bike",
-  "bicycle", "motorcycle", "scooter", "skateboard", "helmet", "seatbelt", "mirror", "horn", "gear", "brake", "pedal",
-  "steering wheel", "license", "registration", "insurance", "ticket", "passport", "ID", "credit card", "debit card",
-  "cash", "coin", "receipt", "invoice", "bill", "check", "chequebook", "wallet", "purse", "clutch", "sunglasses",
-  "goggles", "mask", "bandage", "ointment", "medicine", "pill", "tablet", "capsule", "syrup", "inhaler", "thermometer",
-  "first aid kit", "crutch", "cane", "wheelchair", "walker", "prescription", "vitamin", "supplement", "diaper", "wipe",
-  "lotion", "powder", "toy", "crib", "stroller", "bottle", "pacifier", "bib", "blanket", "teddy bear", "book", "storybook",
-  "coloring book", "crayon", "marker", "chalk", "paint", "brush", "easel", "scissors", "glue", "tape", "string", "bead",
-  "sticker", "stamp", "paper", "card", "envelope", "poster", "canvas", "fabric", "thread", "needle", "sewing machine", "yarn", 
-  "knitting needle", "crochet hook", "embroidery hoop", "thimble", "pin cushion", "pattern", "template", "stencil", "ribbon",
-  "lace", "button", "zipper", "snap", "velcro", "elastic", "safety pin", "clip", "hook", "hanger", "rack", "shelf", "drawer",
-  "closet", "wardrobe", "mirror", "light", "lamp", "chandelier", "lantern", "torch", "flashlight", "candle", "bulb", "switch",
-  "socket", "plug", "cord", "wire", "cable", "router", "modem", "antenna", "remote", "controller", "joystick", "console", "disc", 
-  "CD", "DVD", "Blu-ray", "USB", "hard drive", "memory card", "SD card", "microSD", "adapter", "reader", "printer", "scanner",
-  "fax", "copier", "paper", "ink", "cartridge", "toner", "pen", "pencil", "sharpener", "eraser", "marker", "highlighter", "ruler",
-  "protractor", "compass", "calculator", "notepad", "journal", "diary", "sketchbook", "clipboard", "whiteboard", "blackboard",
-  "chalk", "duster", "pointer", "projector", "screen", "tripod", "stand", "microphone", "speaker", "headset", "earbuds", "phone",
-  "tablet", "e-reader", "stylus", "case", "cover", "screen protector", "cleaner", "wipe", "brush", "cloth", "spray", "detergent",
-  "soap", "sanitizer", "disinfectant", "mask", "gloves", "gown", "apron", "uniform", "badge", "tag", "lanyard", "bracelet", "ring",
-  "necklace", "earring", "watch", "clock", "timer", "stopwatch", "alarm", "bell", "whistle", "horn", "siren", "megaphone", "radio",
-  "walkie-talkie", "signal", "flag", "banner", "sign", "label", "sticker", "tag", "barcode", "QR code", "ticket", "pass", "card",
-  "invitation", "certificate", "diploma", "license", "permit", "contract", "form", "application", "manual", "guide", "booklet",
-  "brochure", "catalog", "magazine", "newspaper", "newsletter", "flyer", "poster", "notice", "announcement", "report", "plan", "schedule", "agenda", "calendar",
-
+// Lists of unrelated objects and characters for replacements (fallback if OpenAI fails)
+export const unrelatedObjects = [
+  // Common household items
+  "toaster", "blender", "vacuum cleaner", "microwave", "refrigerator", "washing machine",
+  "television", "couch", "lamp", "coffee table", "bookshelf", "bed", "pillow", "blanket",
+  "curtain", "rug", "mirror", "clock", "picture frame", "vase", "plant", "candle",
   
-  // Proper nouns appropriate for 10th grade that are easily mimeable (20% of list)
-  "Batman", "Hogwarts", "Narnia", "Wakanda", "Mordor", "Gotham", "Atlantis",
-  "Disney", "Nintendo", "Tesla", "Godzilla", "Pikachu", "Yoda", "Gandalf",
-  "iPhone", "PlayStation", "Alexa", "Roomba", "Fitbit", "GoPro", "Kindle",
-  "Cheetos", "Oreo", "Nutella", "Excalibur", "Lightsaber", "Elder Wand"
+  // Office items
+  "stapler", "paperclip", "sticky note", "pen", "pencil", "marker", "highlighter",
+  "notebook", "binder", "folder", "paper", "printer", "scanner", "computer", "keyboard",
+  "mouse", "monitor", "desk", "chair", "filing cabinet", "trash can", "calendar",
+  
+  // Food items
+  "banana", "apple", "orange", "grape", "strawberry", "blueberry", "watermelon",
+  "pineapple", "mango", "peach", "pear", "plum", "cherry", "kiwi", "lemon", "lime",
+  "carrot", "broccoli", "cauliflower", "spinach", "lettuce", "tomato", "potato",
+  "onion", "garlic", "pepper", "cucumber", "zucchini", "eggplant", "mushroom",
+  "bread", "bagel", "muffin", "croissant", "donut", "cake", "cookie", "pie",
+  "ice cream", "yogurt", "cheese", "milk", "butter", "egg", "bacon", "sausage",
+  "chicken", "beef", "pork", "fish", "shrimp", "lobster", "crab", "clam", "oyster",
+  
+  // Clothing items
+  "shirt", "t-shirt", "blouse", "sweater", "jacket", "coat", "vest", "pants",
+  "jeans", "shorts", "skirt", "dress", "suit", "tie", "bow tie", "scarf", "hat",
+  "cap", "beanie", "gloves", "mittens", "socks", "shoes", "boots", "sandals",
+  "flip flops", "slippers", "belt", "suspenders", "watch", "bracelet", "necklace",
+  "earrings", "ring", "sunglasses", "glasses", "contact lenses", "umbrella",
+  
+  // Transportation items
+  "car", "truck", "van", "bus", "train", "subway", "tram", "bicycle", "motorcycle",
+  "scooter", "skateboard", "roller skates", "airplane", "helicopter", "boat", "ship",
+  "yacht", "jet ski", "canoe", "kayak", "raft", "hot air balloon", "rocket", "spaceship",
+  
+  // Electronics
+  "smartphone", "tablet", "laptop", "desktop", "smartwatch", "fitness tracker",
+  "headphones", "earbuds", "speaker", "microphone", "camera", "video camera",
+  "drone", "virtual reality headset", "gaming console", "remote control", "charger",
+  "power bank", "USB drive", "memory card", "hard drive", "router", "modem",
+  
+  // Tools
+  "hammer", "screwdriver", "wrench", "pliers", "saw", "drill", "level", "tape measure",
+  "ruler", "square", "compass", "chisel", "mallet", "clamp", "vise", "sandpaper",
+  "paintbrush", "roller", "ladder", "wheelbarrow", "shovel", "rake", "hoe", "trowel",
+  "lawnmower", "hedge trimmer", "chainsaw", "axe", "crowbar", "sledgehammer",
+  
+  // Sports equipment
+  "baseball", "baseball bat", "baseball glove", "football", "basketball", "soccer ball",
+  "volleyball", "tennis ball", "tennis racket", "golf ball", "golf club", "hockey puck",
+  "hockey stick", "frisbee", "boomerang", "bowling ball", "bowling pin", "pool cue",
+  "pool ball", "dart", "dartboard", "jump rope", "hula hoop", "trampoline", "treadmill",
+  "exercise bike", "rowing machine", "weight bench", "dumbbell", "barbell", "kettlebell",
+  
+  // Musical instruments
+  "guitar", "bass guitar", "electric guitar", "acoustic guitar", "piano", "keyboard",
+  "synthesizer", "drum", "drum set", "cymbal", "snare drum", "bass drum", "bongo",
+  "conga", "tambourine", "triangle", "xylophone", "marimba", "vibraphone", "violin",
+  "viola", "cello", "double bass", "harp", "flute", "piccolo", "clarinet", "oboe",
+  "bassoon", "saxophone", "trumpet", "trombone", "tuba", "French horn", "harmonica",
+  "accordion", "bagpipe", "banjo", "mandolin", "ukulele", "sitar", "theremin",
+  
+  // Toys and games
+  "doll", "action figure", "stuffed animal", "teddy bear", "building blocks", "lego",
+  "puzzle", "board game", "card game", "dice", "chess", "checkers", "backgammon",
+  "monopoly", "scrabble", "jenga", "yo-yo", "top", "kite", "marble", "jacks",
+  "ball", "balloon", "bubble wand", "water gun", "nerf gun", "slingshot", "pogo stick"
 ];
 
-// Simple syllable counter (approximate)
-const countSyllables = (word) => {
-  word = word.toLowerCase();
-  if (word.length <= 3) return 1;
-  
-  // Remove trailing e
-  word = word.replace(/e$/, '');
-  
-  // Count vowel groups
-  const vowelGroups = word.match(/[aeiouy]+/g);
-  return vowelGroups ? vowelGroups.length : 1;
-};
+export const unrelatedCharacters = [
+  // Fictional characters
+  "Mickey Mouse", "Donald Duck", "Goofy", "Minnie Mouse", "Pluto", "Daisy Duck",
+  "Bugs Bunny", "Daffy Duck", "Porky Pig", "Elmer Fudd", "Tweety Bird", "Sylvester",
+  "Road Runner", "Wile E. Coyote", "Marvin the Martian", "Yosemite Sam", "Foghorn Leghorn",
+  "Popeye", "Olive Oyl", "Bluto", "Betty Boop", "Felix the Cat", "Tom", "Jerry",
+  "Scooby-Doo", "Shaggy", "Fred", "Velma", "Daphne", "Scrappy-Doo",
+  "Fred Flintstone", "Wilma Flintstone", "Barney Rubble", "Betty Rubble", "Pebbles", "Bamm-Bamm",
+  "George Jetson", "Jane Jetson", "Judy Jetson", "Elroy Jetson", "Astro", "Rosie the Robot",
+  "Yogi Bear", "Boo-Boo Bear", "Ranger Smith", "Huckleberry Hound", "Snagglepuss", "Quick Draw McGraw",
+  "Top Cat", "Magilla Gorilla", "Peter Potamus", "Squiddly Diddly", "Atom Ant", "Secret Squirrel",
+  "Jonny Quest", "Hadji", "Dr. Benton Quest", "Race Bannon", "Bandit",
+  "Space Ghost", "Birdman", "Mightor", "Shazzan", "Moby Dick", "Jabberjaw",
+  "Hong Kong Phooey", "Captain Caveman", "Blue Falcon", "Dynomutt", "Speed Buggy",
+  "The Flintstones", "The Jetsons", "The Smurfs", "Papa Smurf", "Smurfette", "Brainy Smurf", "Hefty Smurf",
+  "He-Man", "Skeletor", "She-Ra", "Catra", "Man-At-Arms", "Teela", "Beast Man", "Evil-Lyn",
+  "Lion-O", "Cheetara", "Panthro", "Tygra", "Mumm-Ra", "Snarf",
+  "Optimus Prime", "Megatron", "Bumblebee", "Starscream", "Jazz", "Soundwave", "Grimlock",
+  "Duke", "Cobra Commander", "Snake Eyes", "Scarlett", "Destro", "Baroness", "Storm Shadow",
+  "Leonardo", "Donatello", "Raphael", "Michelangelo", "Splinter", "Shredder", "April O'Neil",
+  "Superman", "Batman", "Wonder Woman", "Flash", "Green Lantern", "Aquaman", "Martian Manhunter",
+  "Spider-Man", "Iron Man", "Captain America", "Thor", "Hulk", "Black Widow", "Hawkeye",
+  "Wolverine", "Cyclops", "Jean Grey", "Storm", "Professor X", "Magneto", "Mystique",
+  "Mario", "Luigi", "Princess Peach", "Bowser", "Yoshi", "Toad", "Wario", "Waluigi",
+  "Sonic the Hedgehog", "Tails", "Knuckles", "Amy Rose", "Dr. Eggman", "Shadow", "Rouge"
+];
 
-// Identify nouns in a statement
-const identifyNouns = (statement) => {
-  // Split the statement into words
-  const words = statement.split(/\b/);
+// Helper function to determine if two words are in the same category
+const areWordsInSameCategory = (word1, word2) => {
+  // Convert to lowercase for case-insensitive comparison
+  const w1 = word1.toLowerCase();
+  const w2 = word2.toLowerCase();
   
-  // Filter for potential nouns (simplified approach)
-  // In a real app, you'd use NLP for better part-of-speech tagging
-  const potentialNouns = words.filter(word => {
-    // Must be at least 3 characters
-    if (!/^[a-zA-Z]{3,}$/.test(word)) return false;
+  // Define categories for comparison
+  const categories = {
+    tools: ["hammer", "screwdriver", "wrench", "pliers", "saw", "drill", "chisel", "mallet", "clamp"],
+    kitchenItems: ["pot", "pan", "spatula", "whisk", "bowl", "spoon", "knife", "cutting board", "plate"],
+    furniture: ["chair", "table", "desk", "couch", "sofa", "bed", "bookshelf", "cabinet", "dresser"],
+    electronics: ["computer", "phone", "tablet", "laptop", "television", "camera", "headphones", "speaker"],
+    clothing: ["shirt", "pants", "jacket", "hat", "gloves", "shoes", "boots", "socks", "scarf"],
+    vehicles: ["car", "truck", "bus", "train", "airplane", "bicycle", "motorcycle", "boat", "ship"],
+    instruments: ["guitar", "piano", "drum", "violin", "flute", "trumpet", "saxophone", "harp"],
+    sports: ["baseball", "football", "basketball", "soccer", "tennis", "golf", "hockey", "volleyball"],
+    foodItems: ["apple", "banana", "orange", "bread", "cheese", "meat", "vegetable", "fruit"],
+    animals: ["dog", "cat", "bird", "fish", "horse", "cow", "sheep", "chicken", "pig"],
+    professions: ["doctor", "teacher", "engineer", "chef", "artist", "musician", "writer", "athlete"]
+  };
+  
+  // Check if both words are in the same category
+  for (const category in categories) {
+    const wordsInCategory = categories[category];
+    const word1InCategory = wordsInCategory.some(item => w1.includes(item) || item.includes(w1));
+    const word2InCategory = wordsInCategory.some(item => w2.includes(item) || item.includes(w2));
     
-    // Skip common non-nouns
-    const nonNouns = [
-      'with', 'using', 'and', 'the', 'for', 'from', 'that', 'this', 
-      'these', 'those', 'then', 'than', 'when', 'where', 'which'
-    ];
-    
-    if (nonNouns.includes(word.toLowerCase())) return false;
-    
+    if (word1InCategory && word2InCategory) {
+      return true;
+    }
+  }
+  
+  // Check for direct similarity (one word contains the other)
+  if (w1.includes(w2) || w2.includes(w1)) {
     return true;
-  });
-  
-  return potentialNouns;
-};
-
-// Get a random word from the replacement list that hasn't been used before
-// and doesn't contain "and"
-export const getRandomReplacement = (usedWords, isPersonComponent = false) => {
-  // If this is a person/role component, return a celebrity or character
-  if (isPersonComponent) {
-    return getRandomCelebrityOrCharacter(usedWords);
   }
   
-  // Otherwise, use the standard word replacement logic
-  // Convert usedWords to lowercase for case-insensitive comparison
-  const usedWordsLower = new Set(Array.from(usedWords).map(word => word.toLowerCase()));
+  // Check for common words that might indicate similarity
+  const commonWords = ["small", "large", "big", "little", "mini", "giant", "portable", "electric", "manual", "digital"];
+  const word1HasCommon = commonWords.some(word => w1.includes(word));
+  const word2HasCommon = commonWords.some(word => w2.includes(word));
   
-  // Filter out words that have been used before or contain "and"
-  const availableWords = tenthGradeWords.filter(word => 
-    !usedWordsLower.has(word.toLowerCase()) && 
-    !word.toLowerCase().includes('and')
-  );
-  
-  // If we have no available words, generate a completely random word
-  if (availableWords.length === 0) {
-    // Generate a random word with a random prefix
-    const prefixes = ['mega', 'ultra', 'super', 'hyper', 'mini', 'micro', 'nano', 'giga', 'tera', 'pico'];
-    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const randomSuffix = Math.floor(Math.random() * 10000);
-    return `${randomPrefix}thing${randomSuffix}`;
-  }
-  
-  // Get a random word from available words
-  const randomIndex = Math.floor(Math.random() * availableWords.length);
-  return availableWords[randomIndex];
-};
-
-// Determine if a word is plural
-const isPlural = (word) => {
-  if (!word) return false;
-  
-  // Common plural endings
-  return word.endsWith('s') && 
-         !word.endsWith('ss') && 
-         !word.endsWith('us') && 
-         !word.endsWith('is');
-};
-
-// Determine the appropriate article for a word
-const getAppropriateArticle = (word) => {
-  // If it's a proper noun (starts with capital letter), no article needed
-  if (word && word[0] === word[0].toUpperCase() && 
-      word !== 'I' && // Exception for the pronoun "I"
-      !word.toUpperCase() === word) { // Not an acronym like "NASA"
-    return ""; // Return empty string for proper nouns
-  }
-  
-  // Check if the word is plural
-  if (isPlural(word)) {
-    return ""; // No article for plural nouns
-  }
-  
-  // Check for uncountable nouns
-  const uncountableNouns = [
-    'water', 'coffee', 'tea', 'milk', 'sugar', 'salt', 'pepper', 'rice', 'bread',
-    'cheese', 'butter', 'oil', 'flour', 'meat', 'fish', 'chicken', 'advice',
-    'information', 'news', 'furniture', 'luggage', 'equipment', 'traffic',
-    'money', 'cash', 'currency', 'music', 'art', 'love', 'happiness', 'anger',
-    'fear', 'sadness', 'knowledge', 'progress', 'weather', 'sunshine', 'rain',
-    'snow', 'wind', 'electricity', 'gas', 'air', 'oxygen', 'steam', 'smoke',
-    'pollution', 'garbage', 'trash', 'rubbish', 'homework', 'work', 'research',
-    'evidence', 'proof', 'fun', 'leisure', 'slang', 'vocabulary', 'grammar',
-    'spelling', 'pronunciation', 'sleet', 'fog', 'hail', 'lightning', 'thunder'
-  ];
-  
-  if (word && uncountableNouns.includes(word.toLowerCase())) {
-    return ""; // No article for uncountable nouns
-  }
-  
-  // Check if the word starts with a vowel sound
-  if (word) {
-    const firstLetter = word.toLowerCase().charAt(0);
+  if (word1HasCommon && word2HasCommon) {
+    // Extract the non-common parts and compare them
+    let w1Stripped = w1;
+    let w2Stripped = w2;
     
-    // Special cases for words that start with vowels but have consonant sounds
-    const vowelExceptions = ['one', 'once', 'unicorn', 'unicycle', 'university', 'uniform', 'union', 'unique', 'unit', 'united', 'universe', 'uranium'];
-    if (vowelExceptions.includes(word.toLowerCase())) {
-      return "a";
-    }
+    commonWords.forEach(word => {
+      w1Stripped = w1Stripped.replace(word, '').trim();
+      w2Stripped = w2Stripped.replace(word, '').trim();
+    });
     
-    // Special cases for words that start with 'h' but the 'h' is silent
-    const silentHWords = ['hour', 'honor', 'honest', 'heir', 'herb']; // Note: 'herb' is regional
-    if (silentHWords.includes(word.toLowerCase())) {
-      return "an";
-    }
-    
-    // Check for vowel sounds
-    if (['a', 'e', 'i', 'o', 'u'].includes(firstLetter)) {
-      return "an";
+    if (w1Stripped === w2Stripped || w1Stripped.includes(w2Stripped) || w2Stripped.includes(w1Stripped)) {
+      return true;
     }
   }
   
-  // Default to "a" for consonant sounds
-  return "a";
+  return false;
 };
 
-// Get the correct verb form based on the subject
-const getCorrectVerb = (subject, verb) => {
-  // If the subject is plural or uncountable, use the base form of the verb
-  if (isPlural(subject)) {
-    return "are"; // Plural subjects use "are"
-  }
-  
-  // Check for uncountable nouns that use "is"
-  const uncountableNouns = [
-    'water', 'coffee', 'tea', 'milk', 'sugar', 'salt', 'pepper', 'rice', 'bread',
-    'cheese', 'butter', 'oil', 'flour', 'meat', 'fish', 'chicken', 'advice',
-    'information', 'news', 'furniture', 'luggage', 'equipment', 'traffic',
-    'money', 'cash', 'currency', 'music', 'art', 'love', 'happiness', 'anger',
-    'fear', 'sadness', 'knowledge', 'progress', 'weather', 'sunshine', 'rain',
-    'snow', 'wind', 'electricity', 'gas', 'air', 'oxygen', 'steam', 'smoke',
-    'pollution', 'garbage', 'trash', 'rubbish', 'homework', 'work', 'research',
-    'evidence', 'proof', 'fun', 'leisure', 'slang', 'vocabulary', 'grammar',
-    'spelling', 'pronunciation', 'sleet', 'fog', 'hail', 'lightning', 'thunder'
-  ];
-  
-  // For singular subjects and uncountable nouns, use "is"
-  return "is";
-};
-
-// Format the statement according to the new syntax with appropriate articles and verb agreement
-const formatNewStatement = (activityVerb, components, replacements) => {
-  if (!components || components.length === 0 || !replacements || replacements.length === 0) {
-    return activityVerb;
-  }
-  
-  let statement = `${activityVerb}, but `;
-  
-  // Create the "component is replacement" parts
-  const parts = [];
-  
-  for (let i = 0; i < components.length; i++) {
-    if (i < replacements.length) {
-      const component = components[i];
-      const replacement = replacements[i].replacement;
-      
-      // Get the appropriate article for the replacement
-      const article = getAppropriateArticle(replacement);
-      
-      // Get the correct verb form based on the replacement
-      const verb = getCorrectVerb(replacement, "is");
-      
-      // Add "the" before the component and appropriate article before replacement
-      parts.push({
-        text: `the ${component} ${verb} ${article ? article + ' ' : ''}${replacement}`,
-        article: article
-      });
-    }
-  }
-  
-  // Join the parts with commas and "and" ONLY before the final item
-  if (parts.length === 1) {
-    statement += parts[0].text;
-  } else if (parts.length === 2) {
-    statement += `${parts[0].text} and ${parts[1].text}`;
-  } else {
-    // For 3 or more items, use commas and add "and" ONLY before the last item
-    const lastPart = parts.pop();
-    const joinedParts = parts.map(part => part.text).join(", ");
-    statement += `${joinedParts}, and ${lastPart.text}`;
-  }
-  
-  return statement + ".";
-};
-
-// Main function to replace words in a statement
+// Replace words in a statement with unrelated ones using OpenAI
 export const replaceWords = async (statement, usedWords) => {
-  // Check if statement is an object with activityVerb and selectedComponents
-  if (!statement || typeof statement !== 'object' || !statement.activityVerb || !statement.selectedComponents) {
-    return { replacedText: "Error: Invalid statement format", replacements: [] };
-  }
-  
-  const { activityVerb, selectedComponents } = statement;
-  
   try {
-    // Try to use OpenAI if it's initialized
-    if (openAIService.initialized) {
-      // Generate replacements with OpenAI
-      const replacements = await openAIService.generateReplacements(selectedComponents, usedWords);
-      
-      // Format the statement according to the new syntax
-      const replacedText = formatNewStatement(activityVerb, selectedComponents, replacements);
-      
-      return { replacedText, replacements };
-    } else {
-      // Fall back to local data
-      console.log("OpenAI not initialized for replacements, using local data");
-      return fallbackReplaceWords(statement, usedWords);
+    if (!statement || !statement.selectedComponents) {
+      throw new Error('Invalid statement format');
     }
-  } catch (error) {
-    console.error("Error using OpenAI for replacements, falling back to local data:", error);
-    return fallbackReplaceWords(statement, usedWords);
-  }
-};
-
-// Fallback to local data if OpenAI is not available
-const fallbackReplaceWords = async (statement, usedWords) => {
-  const { activityVerb, selectedComponents } = statement;
-  
-  // Create replacements for each component
-  const replacements = [];
-  
-  // Track if we've already used a celebrity/character in this set of replacements
-  let usedCelebrityForThisActivity = false;
-  
-  for (const component of selectedComponents) {
-    // Check if the component is a person/role
-    const isPerson = isPersonOrRole(component);
     
-    // Get appropriate replacement based on component type
-    let replacement;
+    let replacements = [];
     
-    if (isPerson) {
-      // If this is a person component and we haven't used a celebrity yet for this activity,
-      // use a celebrity replacement
-      if (!usedCelebrityForThisActivity) {
-        replacement = getRandomCelebrityOrCharacter(usedWords);
-        usedCelebrityForThisActivity = true;
-      } else {
-        // Otherwise, use a regular word replacement
-        replacement = getRandomReplacement(usedWords, false);
+    // Try to use OpenAI for replacements
+    if (openAIService.initialized) {
+      try {
+        // Update the OpenAI prompt to emphasize incongruity
+        replacements = await openAIService.generateReplacements(statement.selectedComponents, usedWords);
+        
+        // Verify that replacements are actually incongruous
+        for (let i = 0; i < replacements.length; i++) {
+          const replacement = replacements[i];
+          
+          // Check if the replacement is too similar to the original
+          if (areWordsInSameCategory(replacement.original, replacement.replacement)) {
+            console.log(`Replacement "${replacement.replacement}" is too similar to "${replacement.original}", generating a new one...`);
+            
+            // Generate a new replacement that's truly incongruous
+            let newReplacement;
+            let attempts = 0;
+            const maxAttempts = 5;
+            
+            do {
+              newReplacement = await replaceIndividualWord(replacement.original, statement.activityVerb, usedWords, false, true);
+              attempts++;
+            } while (
+              areWordsInSameCategory(replacement.original, newReplacement) && 
+              attempts < maxAttempts
+            );
+            
+            // Update the replacement
+            replacements[i] = {
+              original: replacement.original,
+              replacement: newReplacement
+            };
+          }
+          
+          // Add to repetition prevention system
+          await addReplacementUnified(replacements[i].replacement);
+        }
+      } catch (error) {
+        console.error('Error getting replacements from OpenAI:', error);
+        // Fall back to local replacement if OpenAI fails
+        replacements = await fallbackReplaceWords(statement, usedWords);
       }
     } else {
-      // For non-person components, always use regular word replacements
-      replacement = getRandomReplacement(usedWords, false);
+      // If OpenAI is not initialized, use local replacement
+      replacements = await fallbackReplaceWords(statement, usedWords);
     }
+    
+    // Create the replaced text by replacing each component in the activity text
+    let replacedText = statement.activityVerb;
+    
+    // Replace each component in the activity text if it appears
+    replacements.forEach(replacement => {
+      // Create a regex that matches the whole word only
+      if (replacement.original && typeof replacement.original === 'string') {
+        const regex = new RegExp(`\\b${replacement.original}\\b`, 'gi');
+        replacedText = replacedText.replace(regex, replacement.replacement);
+      }
+    });
+    
+    return {
+      originalText: statement.activityVerb,
+      replacedText: replacedText,
+      replacements: replacements
+    };
+  } catch (error) {
+    console.error('Error replacing words:', error);
+    throw error;
+  }
+};
+
+// Fallback method for replacing words if OpenAI fails
+const fallbackReplaceWords = async (statement, usedWords) => {
+  const replacements = [];
+  
+  // For each component in the statement, generate a replacement
+  for (const component of statement.selectedComponents) {
+    const replacement = await replaceIndividualWord(component, statement.activityVerb, usedWords, false, true);
     
     replacements.push({
       original: component,
       replacement: replacement
     });
+    
+    // Add the replacement to our repetition prevention system
+    await addReplacementUnified(replacement);
   }
   
-  // Format the statement according to the new syntax
-  const replacedText = formatNewStatement(activityVerb, selectedComponents, replacements);
+  return replacements;
+};
+
+// Get a replacement that's guaranteed to be incongruous with the original
+const getIncongruousReplacement = (original, usedWordsLower) => {
+  // Determine if the original is a person/role
+  const isPerson = isPersonOrRole(original);
   
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  if (isPerson) {
+    // If original is a person, replace with an object
+    const availableObjects = unrelatedObjects.filter(obj => 
+      !usedWordsLower.has(obj.toLowerCase()) &&
+      !areWordsInSameCategory(original, obj)
+    );
+    
+    if (availableObjects.length > 0) {
+      return availableObjects[Math.floor(Math.random() * availableObjects.length)];
+    }
+  } else {
+    // If original is an object, replace with a person/character
+    const availableCharacters = unrelatedCharacters.filter(char => 
+      !usedWordsLower.has(char.toLowerCase()) &&
+      !areWordsInSameCategory(original, char)
+    );
+    
+    if (availableCharacters.length > 0) {
+      return availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+    }
+    
+    // If no characters are available, try to find an object from a different category
+    const availableObjects = unrelatedObjects.filter(obj => 
+      !usedWordsLower.has(obj.toLowerCase()) &&
+      !areWordsInSameCategory(original, obj)
+    );
+    
+    if (availableObjects.length > 0) {
+      return availableObjects[Math.floor(Math.random() * availableObjects.length)];
+    }
+  }
   
-  return { replacedText, replacements };
+  // If we can't find a suitable replacement, generate a unique one
+  return `${isPerson ? 'object' : 'character'} #${Math.floor(Math.random() * 10000) + 1}`;
+};
+
+// Replace an individual word with an unrelated one
+export const replaceIndividualWord = async (word, activityVerb, usedWords, isOriginalComponent = false, forceIncongruous = false) => {
+  try {
+    if (!word || typeof word !== 'string') {
+      return 'replacement';
+    }
+    
+    // Try to use OpenAI for generating a replacement or new component
+    if (openAIService.initialized) {
+      try {
+        if (isOriginalComponent) {
+          // For original components, we want to generate a new component that's logically associated with the activity
+          // Get the existing components to avoid duplicates
+          const existingComponents = [];
+          
+          // Generate a new component using OpenAI
+          const newComponent = await openAIService.generateSingleComponent(
+            activityVerb,
+            existingComponents,
+            usedWords
+          );
+          
+          // Add the new component to our repetition prevention system
+          await addReplacementUnified(newComponent);
+          
+          return newComponent;
+        } else {
+          // For replacements, we want to generate an unrelated word that's visually demonstrable
+          // Update the OpenAI prompt to emphasize incongruity
+          const replacements = await openAIService.generateReplacements([word], usedWords, forceIncongruous);
+          
+          if (replacements && replacements.length > 0 && replacements[0].replacement) {
+            // Verify the replacement is actually incongruous
+            if (forceIncongruous && areWordsInSameCategory(word, replacements[0].replacement)) {
+              console.log(`OpenAI replacement "${replacements[0].replacement}" is too similar to "${word}", falling back to local replacement...`);
+              // Fall back to local replacement
+              return await localReplaceWord(word, usedWords, forceIncongruous);
+            }
+            
+            // Add the replacement to our repetition prevention system
+            await addReplacementUnified(replacements[0].replacement);
+            
+            return replacements[0].replacement;
+          }
+        }
+      } catch (error) {
+        console.error('Error getting replacement from OpenAI:', error);
+        // Fall back to local replacement if OpenAI fails
+      }
+    }
+    
+    // Fallback to local replacement if OpenAI is not initialized or fails
+    return await localReplaceWord(word, usedWords, forceIncongruous);
+  } catch (error) {
+    console.error('Error replacing individual word:', error);
+    return `replacement ${Math.floor(Math.random() * 1000)}`;
+  }
+};
+
+// Local replacement function
+const localReplaceWord = async (word, usedWords, forceIncongruous) => {
+  // Convert usedWords to lowercase for case-insensitive comparison
+  const usedWordsLower = new Set(Array.from(usedWords).map(word => word.toLowerCase()));
+  
+  // Determine if the word is a person/role
+  const isPerson = isPersonOrRole(word);
+  
+  // If we need to force incongruity, use our special function
+  if (forceIncongruous) {
+    // For people/roles, use a celebrity or fictional character 20% of the time
+    if (isPerson && Math.random() < 0.2) {
+      return getRandomCelebrityOrCharacter(usedWordsLower);
+    }
+    
+    // For objects, use "made of" variation 20% of the time
+    if (!isPerson && Math.random() < 0.2) {
+      const material = getRandomMaterial(usedWordsLower);
+      return `made of ${material}`;
+    }
+    
+    const incongruousReplacement = getIncongruousReplacement(word, usedWordsLower);
+    return incongruousReplacement;
+  }
+  
+  // If the word is a person/role, replace with a celebrity or character
+  if (isPerson) {
+    // 50% chance to use a celebrity/character for people/roles
+    if (Math.random() < 0.5) {
+      return getRandomCelebrityOrCharacter(usedWordsLower);
+    }
+    
+    // Get available celebrities that haven't been used
+    const availableCelebrities = unrelatedCharacters.filter(celeb => 
+      !usedWordsLower.has(celeb.toLowerCase())
+    );
+    
+    // Further filter celebrities that exist in our repetition prevention system
+    const filteredCelebrities = [];
+    for (const celeb of availableCelebrities) {
+      const exists = await checkReplacementExistsUnified(celeb);
+      if (!exists) {
+        filteredCelebrities.push(celeb);
+      }
+    }
+    
+    // If we have available celebrities, choose a random one
+    if (filteredCelebrities.length > 0) {
+      const randomIndex = Math.floor(Math.random() * filteredCelebrities.length);
+      return filteredCelebrities[randomIndex];
+    }
+    
+    // If we've exhausted all celebrities, generate a unique one
+    return `${getRandomCelebrityOrCharacter(usedWords)} ${Math.floor(Math.random() * 100) + 1}`;
+  }
+  
+  // If the word is not a person/role, replace with an unrelated object
+  // 30% chance to use "made of" variation for objects
+  if (Math.random() < 0.3) {
+    const material = getRandomMaterial(usedWordsLower);
+    return `made of ${material}`;
+  }
+  
+  // Get available objects that haven't been used
+  const availableObjects = unrelatedObjects.filter(obj => 
+    !usedWordsLower.has(obj.toLowerCase())
+  );
+  
+  // Further filter objects that exist in our repetition prevention system
+  const filteredObjects = [];
+  for (const obj of availableObjects) {
+    const exists = await checkReplacementExistsUnified(obj);
+    if (!exists) {
+      filteredObjects.push(obj);
+    }
+  }
+  
+  // If we have available objects, choose a random one
+  if (filteredObjects.length > 0) {
+    const randomIndex = Math.floor(Math.random() * filteredObjects.length);
+    return filteredObjects[randomIndex];
+  }
+  
+  // If we've exhausted all objects, generate a unique one
+  return `${unrelatedObjects[Math.floor(Math.random() * unrelatedObjects.length)]} ${Math.floor(Math.random() * 100) + 1}`;
 };

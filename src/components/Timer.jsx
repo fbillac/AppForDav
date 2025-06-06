@@ -6,6 +6,7 @@ function Timer({ darkMode }) {
   const [isRunning, setIsRunning] = useState(false);
   const [duration, setDuration] = useState(60); // Default 60 seconds
   const [showCountdown, setShowCountdown] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const intervalRef = useRef(null);
   const audioRef = useRef(null);
   const countdownTimeoutRef = useRef(null);
@@ -140,17 +141,26 @@ function Timer({ darkMode }) {
         </button>
       </div>
       
-      <div className="timer-input">
-        <label htmlFor="duration">Timer duration (seconds):</label>
-        <input
-          id="duration"
-          type="number"
-          min="1"
-          value={duration}
-          onChange={handleDurationChange}
-          disabled={isRunning}
-        />
-      </div>
+      <button 
+        className="timer-settings-toggle" 
+        onClick={() => setShowSettings(!showSettings)}
+      >
+        {showSettings ? 'Hide Settings' : 'Settings'}
+      </button>
+      
+      {showSettings && (
+        <div className="timer-input">
+          <label htmlFor="duration">Duration (seconds):</label>
+          <input
+            id="duration"
+            type="number"
+            min="1"
+            value={duration}
+            onChange={handleDurationChange}
+            disabled={isRunning}
+          />
+        </div>
+      )}
 
       {/* NBA horn sound for buzzer */}
       <audio ref={audioRef} preload="auto">
