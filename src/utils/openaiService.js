@@ -5,11 +5,15 @@ class OpenAIService {
   constructor() {
     this.openai = null;
     this.initialized = false;
+    this.connectionStatus = "disconnected"; // "disconnected", "connecting", "connected", "error"
+    this.connectionError = null;
   }
 
   initialize(apiKey) {
     if (!apiKey) {
       console.error("OpenAI API key is required");
+      this.connectionStatus = "error";
+      this.connectionError = "API key is required";
       return false;
     }
 
@@ -17,6 +21,8 @@ class OpenAIService {
       // Validate API key format (basic check)
       if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
         console.error("Invalid API key format");
+        this.connectionStatus = "error";
+        this.connectionError = "Invalid API key format";
         return false;
       }
 
@@ -26,12 +32,65 @@ class OpenAIService {
       });
       
       this.initialized = true;
+      this.connectionStatus = "connecting"; // Will be verified with verifyConnection()
+      this.connectionError = null;
       console.log("OpenAI service initialized successfully");
       return true;
     } catch (error) {
       console.error("Error initializing OpenAI:", error);
+      this.connectionStatus = "error";
+      this.connectionError = error.message || "Failed to initialize OpenAI service";
       return false;
     }
+  }
+
+  // Verify the connection by making a simple API call
+  async verifyConnection() {
+    if (!this.initialized) {
+      this.connectionStatus = "disconnected";
+      return false;
+    }
+
+    try {
+      this.connectionStatus = "connecting";
+      console.log("Verifying OpenAI connection...");
+      
+      // Make a minimal API call to verify the connection
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: "Hello" }
+        ],
+        max_tokens: 5, // Minimal tokens to reduce cost
+        temperature: 0.7,
+      });
+
+      // Check if we got a valid response
+      if (response && response.choices && response.choices.length > 0) {
+        console.log("OpenAI connection verified successfully");
+        this.connectionStatus = "connected";
+        this.connectionError = null;
+        return true;
+      } else {
+        console.error("Invalid response from OpenAI API");
+        this.connectionStatus = "error";
+        this.connectionError = "Invalid response from OpenAI API";
+        return false;
+      }
+    } catch (error) {
+      console.error("Error verifying OpenAI connection:", error);
+      this.connectionStatus = "error";
+      this.connectionError = error.message || "Failed to connect to OpenAI API";
+      return false;
+    }
+  }
+
+  getConnectionStatus() {
+    return {
+      status: this.connectionStatus,
+      error: this.connectionError
+    };
   }
 
   async generateActivity(numComponents = 3) {
@@ -40,6 +99,8 @@ class OpenAIService {
     }
 
     try {
+      console.log(`Generating activity with ${numComponents} components...`);
+      
       const prompt = `Generate a physically demonstrable activity for a charades game with exactly ${numComponents} logical components.
 Format the response as a JSON object with the following structure:
 {
@@ -82,6 +143,7 @@ IMPORTANT: Each component must be unique - do not repeat any component.`;
       });
 
       const text = response.choices[0].message.content.trim();
+      console.log("Activity generated successfully:", text);
       return JSON.parse(text);
     } catch (error) {
       console.error("Error generating activity:", error);
@@ -95,6 +157,8 @@ IMPORTANT: Each component must be unique - do not repeat any component.`;
     }
 
     try {
+      console.log("Generating replacements for components:", components);
+      
       // Convert usedWords Set to Array for the prompt
       const usedWordsArray = Array.from(usedWords);
       
@@ -112,6 +176,8 @@ Rules:
 8. Each replacement must be UNIQUE - do not repeat any word
 9. IMPORTANT: Do not use any words that have been used before
 10. CRITICAL: The replacement should create HUMOR through INCONGRUITY with the original
+11. CRITICAL: Each replacement must be COMPLETELY DIFFERENT from any previous replacements - no variations or similar words
+12. CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers
 
 STRICTLY FORBIDDEN: Never use generic or categorical terms like:
 - "equipment", "supplies", "materials", "tools", "items", "accessories"
@@ -140,14 +206,15 @@ Format the response as a JSON array with the following structure:
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates interesting, specific word replacements for charades. Never use generic terms." },
+          { role: "system", content: "You are a helpful assistant that generates interesting, specific word replacements for charades. Never use generic terms or append numbers to words." },
           { role: "user", content: prompt }
         ],
         max_tokens: 200,
-        temperature: 0.8, // Higher temperature for more creative, incongruous replacements
+        temperature: 0.9, // Higher temperature for more creative, incongruous replacements
       });
 
       const text = response.choices[0].message.content.trim();
+      console.log("Replacements generated successfully:", text);
       return JSON.parse(text);
     } catch (error) {
       console.error("Error generating replacements:", error);
@@ -161,6 +228,8 @@ Format the response as a JSON array with the following structure:
     }
 
     try {
+      console.log("Generating single component for activity:", activityVerb);
+      
       // Convert usedWords Set to Array for the prompt
       const usedWordsArray = Array.from(usedWords);
       
@@ -176,6 +245,8 @@ Rules:
 5. It should NOT be similar to the existing components
 6. It should be appropriate for all ages
 7. It should be a single word or short phrase (no "and")
+8. It MUST be COMPLETELY UNIQUE - not a variation of any previously used word
+9. CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers
 
 STRICTLY FORBIDDEN: Never use generic or categorical terms like:
 - "equipment", "supplies", "materials", "tools", "items", "accessories"
@@ -194,17 +265,19 @@ IMPORTANT: Return ONLY the new component as a single string, with no additional 
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates specific, non-generic charades components." },
+          { role: "system", content: "You are a helpful assistant that generates specific, non-generic charades components without appending numbers." },
           { role: "user", content: prompt }
         ],
         max_tokens: 50,
-        temperature: 0.6, // Slightly lower temperature for more focused results
+        temperature: 0.7, // Higher temperature for more unique results
       });
 
       // Extract and clean the response
       const newComponent = response.choices[0].message.content.trim()
         .replace(/^["'](.*)["']$/, '$1') // Remove quotes if present
         .replace(/^\s*-\s*/, ''); // Remove leading dash if present
+      
+      console.log("Single component generated:", newComponent);
       
       // Check if the component is generic
       if (isGenericTerm(newComponent)) {
@@ -222,6 +295,8 @@ IMPORTANT: Return ONLY the new component as a single string, with no additional 
   // Additional method to generate a more specific component if the first attempt was too generic
   async generateSpecificComponent(activityVerb, existingComponents, usedWords) {
     try {
+      console.log("Generating more specific component for activity:", activityVerb);
+      
       const prompt = `Generate a HIGHLY SPECIFIC component for the activity: "${activityVerb}"
 
 Current components: ${existingComponents.join(", ")}
@@ -232,17 +307,19 @@ I need a VERY SPECIFIC, NON-GENERIC component. For example:
 - Instead of "supplies" → use "paint brush", "canvas", or "easel"
 
 The component must be a CONCRETE, TANGIBLE object or person that would be used in ${activityVerb}.
+It MUST be COMPLETELY UNIQUE - not a variation of any previously used word.
+CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers.
 
 IMPORTANT: Return ONLY the specific component as a single word or short phrase.`;
 
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates extremely specific, concrete charades components." },
+          { role: "system", content: "You are a helpful assistant that generates extremely specific, concrete charades components without appending numbers." },
           { role: "user", content: prompt }
         ],
         max_tokens: 50,
-        temperature: 0.5, // Lower temperature for more focused results
+        temperature: 0.7, // Higher temperature for more unique results
       });
 
       // Extract and clean the response
@@ -250,17 +327,23 @@ IMPORTANT: Return ONLY the specific component as a single word or short phrase.`
         .replace(/^["'](.*)["']$/, '$1') // Remove quotes if present
         .replace(/^\s*-\s*/, ''); // Remove leading dash if present
       
+      console.log("Specific component generated:", specificComponent);
+      
       // If still generic, use a specific fallback
       if (isGenericTerm(specificComponent)) {
         // Generate activity-specific fallback
-        return generateActivitySpecificFallback(activityVerb);
+        const fallback = generateActivitySpecificFallback(activityVerb);
+        console.log("Using fallback component:", fallback);
+        return fallback;
       }
       
       return specificComponent;
     } catch (error) {
       console.error("Error generating specific component:", error);
       // Generate activity-specific fallback
-      return generateActivitySpecificFallback(activityVerb);
+      const fallback = generateActivitySpecificFallback(activityVerb);
+      console.log("Using fallback component after error:", fallback);
+      return fallback;
     }
   }
 
@@ -270,6 +353,8 @@ IMPORTANT: Return ONLY the specific component as a single word or short phrase.`
     }
 
     try {
+      console.log("Simplifying activity:", activity.activityVerb);
+      
       const prompt = `Simplify this activity for a charades game to make it easier to act out:
 "${activity.activityVerb}" with components: ${activity.selectedComponents.join(", ")}
 
@@ -293,6 +378,8 @@ Examples of good components:
 - For "Baking cookies": "mixing bowl", "cookie sheet", "oven"
 
 IMPORTANT: Each component must be unique - do not repeat any component.
+IMPORTANT: Each component must be COMPLETELY UNIQUE - not a variation of any previously used word.
+CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers.
 
 Format the response as a JSON object with the following structure:
 {
@@ -303,14 +390,15 @@ Format the response as a JSON object with the following structure:
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that simplifies charades activities using specific, non-generic components." },
+          { role: "system", content: "You are a helpful assistant that simplifies charades activities using specific, non-generic components without appending numbers." },
           { role: "user", content: prompt }
         ],
         max_tokens: 150,
-        temperature: 0.5,
+        temperature: 0.7, // Higher temperature for more unique results
       });
 
       const text = response.choices[0].message.content.trim();
+      console.log("Activity simplified successfully:", text);
       const parsed = JSON.parse(text);
       
       // Check if any components are generic
@@ -334,6 +422,8 @@ Format the response as a JSON object with the following structure:
   // Additional method to generate a more specific simplification if the first attempt had generic components
   async generateSpecificSimplification(activity) {
     try {
+      console.log("Generating more specific simplification for activity:", activity.activityVerb);
+      
       const prompt = `Simplify this activity for a charades game using ONLY HIGHLY SPECIFIC components:
 "${activity.activityVerb}" with components: ${activity.selectedComponents.join(", ")}
 
@@ -345,6 +435,8 @@ I need VERY SPECIFIC, NON-GENERIC components. For example:
 - Instead of "supplies" → use "paint brush", "canvas", or "easel"
 
 Each component must be a CONCRETE, TANGIBLE object or person that would be used in the activity.
+Each component must be COMPLETELY UNIQUE - not a variation of any previously used word.
+CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers.
 
 Format the response as a JSON object with the following structure:
 {
@@ -355,20 +447,23 @@ Format the response as a JSON object with the following structure:
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that simplifies charades activities using extremely specific, concrete components." },
+          { role: "system", content: "You are a helpful assistant that simplifies charades activities using extremely specific, concrete components without appending numbers." },
           { role: "user", content: prompt }
         ],
         max_tokens: 150,
-        temperature: 0.5,
+        temperature: 0.7, // Higher temperature for more unique results
       });
 
       const text = response.choices[0].message.content.trim();
+      console.log("Specific simplification generated:", text);
       const parsed = JSON.parse(text);
       
       // Replace any remaining generic components with specific ones
       const specificComponents = parsed.components.map(component => {
         if (isGenericTerm(component)) {
-          return generateActivitySpecificFallback(parsed.activityVerb);
+          const fallback = generateActivitySpecificFallback(parsed.activityVerb);
+          console.log(`Replacing generic component "${component}" with fallback "${fallback}"`);
+          return fallback;
         }
         return component;
       });
@@ -386,10 +481,63 @@ Format the response as a JSON object with the following structure:
         specificComponents.push(generateActivitySpecificFallback(activity.activityVerb));
       }
       
+      console.log("Using fallback simplification after error:", specificComponents);
+      
       return {
         activityVerb: activity.activityVerb,
         selectedComponents: specificComponents.slice(0, 3)
       };
+    }
+  }
+
+  // New method to generate a completely random word
+  async generateRandomWord(isPerson = false) {
+    if (!this.initialized) {
+      throw new Error("OpenAI service not initialized");
+    }
+
+    try {
+      console.log(`Generating random ${isPerson ? 'person' : 'object'} word...`);
+      
+      const prompt = isPerson ? 
+        `Generate a single random person, character, or role that would be interesting in a charades game.
+It could be a fictional character, celebrity, profession, or role.
+The word should be visually demonstrable and appropriate for all ages.
+CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers.
+Return ONLY the word or short phrase, with no additional text, quotes, or formatting.` :
+        `Generate a single random object, animal, or thing that would be interesting in a charades game.
+It could be a physical object, animal, food item, or location.
+The word should be visually demonstrable and appropriate for all ages.
+CRITICAL: NEVER append numbers to words - each word must be a natural, standalone word without any numbers.
+Return ONLY the word or short phrase, with no additional text, quotes, or formatting.`;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a helpful assistant that generates random, interesting words for charades without appending numbers." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 20,
+        temperature: 1.0, // Maximum randomness
+      });
+
+      // Extract and clean the response
+      const randomWord = response.choices[0].message.content.trim()
+        .replace(/^["'](.*)["']$/, '$1') // Remove quotes if present
+        .replace(/^\s*-\s*/, ''); // Remove leading dash if present
+      
+      console.log(`Random ${isPerson ? 'person' : 'object'} word generated:`, randomWord);
+      return randomWord;
+    } catch (error) {
+      console.error("Error generating random word:", error);
+      // Return a descriptive fallback instead of timestamp
+      const fallbackWords = isPerson ? 
+        ["firefighter", "ballerina", "astronaut", "chef", "pirate", "ninja", "cowboy", "wizard"] :
+        ["umbrella", "bicycle", "telescope", "pineapple", "volcano", "helicopter", "cactus", "violin"];
+      
+      const fallback = fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
+      console.log(`Using fallback random word after error:`, fallback);
+      return fallback;
     }
   }
 }

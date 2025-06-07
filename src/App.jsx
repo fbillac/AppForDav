@@ -1,746 +1,875 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { generateStatement } from './utils/statementGenerator';
-import { replaceWords, replaceIndividualWord } from './utils/wordReplacer';
-import { initializeUsedWordsStorage, addUsedWords } from './utils/wordStorage';
-import { initializeRepetitionPrevention, getRepetitionPreventionStatsUnified } from './utils/repetitionPrevention';
 import ApiKeyInput from './components/ApiKeyInput';
-import Timer from './components/Timer';
+import { replaceWords, replaceIndividualWord } from './utils/wordReplacer';
 import openAIService from './utils/openaiService';
+import { initializeRegistry } from './utils/globalWordRegistry';
+import { initializeRepetitionPrevention } from './utils/repetitionPrevention';
+import { generateStatement } from './utils/statementGenerator';
+import DeveloperMode from './components/DeveloperMode';
+import Timer from './components/Timer';
 
 function App() {
-  const [statement, setStatement] = useState(null);
-  const [replacedStatement, setReplacedStatement] = useState('');
-  const [usedWords, setUsedWords] = useState(new Set());
+  const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [numComponents, setNumComponents] = useState(3);
+  const [error, setError] = useState(null);
+  const [statement, setStatement] = useState(null);
   const [replacements, setReplacements] = useState([]);
-  const [showSimplify, setShowSimplify] = useState(false);
-  const [isSimplifying, setIsSimplifying] = useState(false);
+  const [usedWords, setUsedWords] = useState(new Set());
+  const [apiStatus, setApiStatus] = useState({
+    status: 'disconnected',
+    error: null
+  });
+  const [showApiSettings, setShowApiSettings] = useState(false);
+  const [registryInitialized, setRegistryInitialized] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [showApiSection, setShowApiSection] = useState(false);
-  const [isReplacingWord, setIsReplacingWord] = useState(false);
-  const [replacingWordIndex, setReplacingWordIndex] = useState(null);
-  const [isReplacingOriginal, setIsReplacingOriginal] = useState(false);
-  const [noMoreOriginalWords, setNoMoreOriginalWords] = useState(false);
-  const [noMoreReplacementWords, setNoMoreReplacementWords] = useState(false);
-  const [repetitionStats, setRepetitionStats] = useState({ activities: 0, components: 0, replacements: 0 });
+  const [numComponents, setNumComponents] = useState(3); // Default to 3 components
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [uiConfig, setUiConfig] = useState(null);
+  const [adminMode, setAdminMode] = useState(false);
 
-  // Initialize used words from storage and repetition prevention system
+  // Initialize the word registry and repetition prevention system
   useEffect(() => {
-    const initializeApp = async () => {
-      // Initialize used words from storage
-      const storedWords = initializeUsedWordsStorage();
-      setUsedWords(storedWords);
-      
-      // Initialize repetition prevention system
-      await initializeRepetitionPrevention();
-      
-      // Get initial stats
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
-      
-      // Check if dark mode preference is stored
-      const storedDarkMode = localStorage.getItem('darkMode');
-      if (storedDarkMode) {
-        setDarkMode(storedDarkMode === 'true');
+    const initialize = async () => {
+      try {
+        // Initialize registry first
+        await initializeRegistry();
+        console.log("Word registry initialized");
+        setRegistryInitialized(true);
+        
+        // Then initialize repetition prevention
+        await initializeRepetitionPrevention();
+        console.log("Repetition prevention initialized");
+      } catch (error) {
+        console.error("Error initializing word registry:", error);
+        setError("Failed to initialize word registry. Please refresh the page.");
       }
-      
-      // Check if API is connected
-      const isApiConnected = openAIService.initialized;
-      setShowApiSection(!isApiConnected);
     };
     
-    initializeApp();
+    initialize();
+    
+    // Check API status periodically
+    const checkApiStatus = () => {
+      if (openAIService.initialized) {
+        const status = openAIService.getConnectionStatus();
+        setApiStatus(status);
+        setIsConnected(status.status === 'connected');
+      } else {
+        setApiStatus({
+          status: 'disconnected',
+          error: null
+        });
+        setIsConnected(false);
+      }
+    };
+    
+    // Initial check
+    checkApiStatus();
+    
+    // Set up interval for periodic checks
+    const intervalId = setInterval(checkApiStatus, 30000); // Check every 30 seconds
+    
+    // Check for user's preferred color scheme
+    const prefersDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(prefersDarkMode);
+    
+    // Listen for changes in color scheme preference
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => {
+      setDarkMode(e.matches);
+    };
+    
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+    } else {
+      // For older browsers
+      mediaQuery.addListener(handleChange);
+    }
+    
+    // Load saved UI configuration if available
+    const loadUiConfig = async () => {
+      try {
+        // Import localforage dynamically to avoid SSR issues
+        const localforage = await import('localforage');
+        const savedConfig = await localforage.default.getItem('uiConfig');
+        if (savedConfig) {
+          setUiConfig(savedConfig);
+          // Apply dark mode setting from saved config if available
+          if (savedConfig.darkMode !== undefined) {
+            setDarkMode(savedConfig.darkMode);
+          }
+          console.log("Loaded UI configuration:", savedConfig);
+        }
+      } catch (error) {
+        console.error("Error loading UI configuration:", error);
+      }
+    };
+    
+    loadUiConfig();
+    
+    // Check for admin mode in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('admin') && urlParams.get('admin') === 'true') {
+      setAdminMode(true);
+    }
+    
+    return () => {
+      clearInterval(intervalId);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        // For older browsers
+        mediaQuery.removeListener(handleChange);
+      }
+    };
   }, []);
 
   // Apply dark mode class to body
   useEffect(() => {
     if (darkMode) {
-      document.body.classList.add('dark-mode');
+      document.body.classList.add('dark-theme');
     } else {
-      document.body.classList.remove('dark-mode');
+      document.body.classList.remove('dark-theme');
     }
-    localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
-
-  // Check if we've exhausted available words
-  useEffect(() => {
-    if (statement && usedWords.size > 0) {
-      checkAvailableWords();
-    }
-  }, [statement, usedWords]);
-
-  // Update repetition prevention stats periodically
-  useEffect(() => {
-    const updateStats = async () => {
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
-    };
-    
-    // Update stats when component mounts
-    updateStats();
-    
-    // Set up interval to update stats every 30 seconds
-    const interval = setInterval(updateStats, 30000);
-    
-    // Clean up interval on unmount
-    return () => clearInterval(interval);
-  }, []);
-
-  // Helper function to check if a word already exists in components
-  const isWordDuplicate = (word, components, indexToIgnore = -1) => {
-    if (!word) return false;
-    
-    const lowerWord = word.toLowerCase();
-    return components.some((component, index) => 
-      index !== indexToIgnore && 
-      component && 
-      component.toLowerCase() === lowerWord
-    );
-  };
-
-  // Check if we've exhausted available words
-  const checkAvailableWords = async () => {
-    if (!statement) return;
-    
-    try {
-      // Import the necessary function to check available components
-      const { determineActivityType, activityComponentMap } = await import('./utils/componentReplacer');
-      
-      // Determine the activity type
-      const activityType = determineActivityType(statement.activityVerb);
-      
-      // Get all possible components for this activity type
-      const allComponents = activityComponentMap[activityType] || activityComponentMap["default"];
-      
-      // Convert usedWords to lowercase for case-insensitive comparison
-      const usedWordsLower = Array.from(usedWords).map(word => word.toLowerCase());
-      
-      // Filter out components that have already been used
-      const availableComponents = allComponents.filter(component => 
-        !usedWordsLower.includes(component.toLowerCase())
-      );
-      
-      // Check if we have any available components left
-      setNoMoreOriginalWords(availableComponents.length === 0);
-      
-      // Check if we have any available replacement words left
-      const { unrelatedObjects, unrelatedCharacters } = await import('./utils/wordReplacer');
-      
-      // Combine all possible replacement words
-      const allReplacements = [...unrelatedObjects, ...unrelatedCharacters];
-      
-      // Filter out replacements that have already been used
-      const availableReplacements = allReplacements.filter(word => 
-        !usedWordsLower.includes(word.toLowerCase())
-      );
-      
-      // Check if we have any available replacements left
-      setNoMoreReplacementWords(availableReplacements.length === 0);
-    } catch (error) {
-      console.error("Error checking available words:", error);
-    }
-  };
-
-  // Generate a new statement with replacements
-  const handleGenerateStatement = async () => {
-    setIsLoading(true);
-    setReplacedStatement('');
-    setReplacements([]);
-    
-    try {
-      // Step 1: Generate the statement
-      const newStatement = await generateStatement(numComponents, usedWords);
-      
-      // Ensure no duplicate components in the generated statement
-      const uniqueComponents = [...new Set(newStatement.selectedComponents)];
-      
-      // If we lost any components due to duplicates, generate new ones
-      if (uniqueComponents.length < newStatement.selectedComponents.length) {
-        console.log("Detected duplicate components in generation, fixing...");
-        
-        // Keep track of components we've seen
-        const seenComponents = new Set();
-        const finalComponents = [];
-        
-        for (const component of newStatement.selectedComponents) {
-          if (!seenComponents.has(component.toLowerCase())) {
-            seenComponents.add(component.toLowerCase());
-            finalComponents.push(component);
-          } else {
-            // Generate a replacement for the duplicate
-            let newComponent;
-            let attempts = 0;
-            const maxAttempts = 5;
-            
-            do {
-              newComponent = await replaceIndividualWord(component, newStatement.activityVerb, usedWords, true);
-              attempts++;
-            } while (
-              seenComponents.has(newComponent.toLowerCase()) && 
-              attempts < maxAttempts
-            );
-            
-            // Add the new component
-            seenComponents.add(newComponent.toLowerCase());
-            finalComponents.push(newComponent);
-          }
-        }
-        
-        // Update the statement with unique components
-        newStatement.selectedComponents = finalComponents;
-      }
-      
-      setStatement(newStatement);
-      
-      // Add the activity words to used words
-      const activityWords = newStatement.activityVerb.split(/\s+/);
-      const updatedUsedWords = addUsedWords(activityWords);
-      setUsedWords(updatedUsedWords);
-      
-      // Show the simplify button if the activity has more than 2 components
-      setShowSimplify(newStatement.selectedComponents.length > 2);
-      
-      // Reset the no more words flags
-      setNoMoreOriginalWords(false);
-      setNoMoreReplacementWords(false);
-      
-      // Step 2: Generate replacements automatically
-      await generateReplacements(newStatement);
-      
-      // Check if we've exhausted available words
-      checkAvailableWords();
-      
-      // Update repetition prevention stats
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
-    } catch (error) {
-      console.error('Error generating statement:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Generate replacements for a statement
-  const generateReplacements = async (statementToReplace) => {
-    if (!statementToReplace) return;
-    
-    try {
-      const result = await replaceWords(statementToReplace, usedWords);
-      
-      // Check for duplicate replacements
-      const seenReplacements = new Set();
-      const uniqueReplacements = [];
-      
-      for (const replacement of result.replacements) {
-        if (!seenReplacements.has(replacement.replacement.toLowerCase())) {
-          seenReplacements.add(replacement.replacement.toLowerCase());
-          uniqueReplacements.push(replacement);
-        } else {
-          // Generate a new unique replacement
-          let newReplacement;
-          let attempts = 0;
-          const maxAttempts = 5;
-          
-          do {
-            newReplacement = await replaceIndividualWord(
-              replacement.original, 
-              statementToReplace.activityVerb, 
-              usedWords,
-              false
-            );
-            attempts++;
-          } while (
-            seenReplacements.has(newReplacement.toLowerCase()) && 
-            attempts < maxAttempts
-          );
-          
-          seenReplacements.add(newReplacement.toLowerCase());
-          uniqueReplacements.push({
-            original: replacement.original,
-            replacement: newReplacement
-          });
-        }
-      }
-      
-      // Recreate the replaced text with unique replacements
-      let replacedText = statementToReplace.activityVerb;
-      
-      // Replace each component in the activity text if it appears
-      uniqueReplacements.forEach(replacement => {
-        // Create a regex that matches the whole word only
-        if (replacement.original && typeof replacement.original === 'string') {
-          const regex = new RegExp(`\\b${replacement.original}\\b`, 'gi');
-          replacedText = replacedText.replace(regex, replacement.replacement);
-        }
-      });
-      
-      setReplacedStatement(replacedText);
-      setReplacements(uniqueReplacements);
-      
-      // Add the replacement words to used words
-      const replacementWords = uniqueReplacements.map(r => r.replacement);
-      const updatedUsedWords = addUsedWords(replacementWords);
-      setUsedWords(updatedUsedWords);
-      
-      // Also add the original components to used words
-      const componentWords = statementToReplace.selectedComponents;
-      addUsedWords(componentWords);
-      
-      // Update repetition prevention stats
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
-    } catch (error) {
-      console.error('Error generating replacements:', error);
-    }
-  };
-
-  // Handle component count change
-  const handleComponentCountChange = (e) => {
-    const count = parseInt(e.target.value, 10);
-    setNumComponents(count);
-  };
-
-  // Simplify the activity
-  const handleSimplifyActivity = async () => {
-    if (!statement) return;
-    
-    setIsSimplifying(true);
-    
-    try {
-      // Check if OpenAI is initialized
-      if (!openAIService.initialized) {
-        alert('OpenAI API is not connected. Please connect your API key first.');
-        setIsSimplifying(false);
-        return;
-      }
-      
-      // Simplify the activity
-      const simplifiedActivity = await openAIService.simplifyActivity(statement);
-      
-      // Ensure no duplicate components in the simplified activity
-      const uniqueComponents = [...new Set(simplifiedActivity.selectedComponents)];
-      
-      // If we lost any components due to duplicates, generate new ones
-      if (uniqueComponents.length < simplifiedActivity.selectedComponents.length) {
-        console.log("Detected duplicate components in simplification, fixing...");
-        
-        // Keep track of components we've seen
-        const seenComponents = new Set();
-        const finalComponents = [];
-        
-        for (const component of simplifiedActivity.selectedComponents) {
-          if (!seenComponents.has(component.toLowerCase())) {
-            seenComponents.add(component.toLowerCase());
-            finalComponents.push(component);
-          } else {
-            // Generate a replacement for the duplicate
-            let newComponent;
-            let attempts = 0;
-            const maxAttempts = 5;
-            
-            do {
-              newComponent = await replaceIndividualWord(component, simplifiedActivity.activityVerb, usedWords, true);
-              attempts++;
-            } while (
-              seenComponents.has(newComponent.toLowerCase()) && 
-              attempts < maxAttempts
-            );
-            
-            // Add the new component
-            seenComponents.add(newComponent.toLowerCase());
-            finalComponents.push(newComponent);
-          }
-        }
-        
-        // Update the statement with unique components
-        simplifiedActivity.selectedComponents = finalComponents;
-      }
-      
-      // Update the statement
-      setStatement(simplifiedActivity);
-      
-      // Reset the replaced statement and replacements
-      setReplacedStatement('');
-      setReplacements([]);
-      
-      // Hide the simplify button
-      setShowSimplify(false);
-      
-      // Generate new replacements for the simplified activity
-      await generateReplacements(simplifiedActivity);
-      
-      // Check if we've exhausted available words
-      checkAvailableWords();
-      
-      // Update repetition prevention stats
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
-    } catch (error) {
-      console.error('Error simplifying activity:', error);
-    } finally {
-      setIsSimplifying(false);
-    }
-  };
 
   // Toggle dark mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
   };
 
-  // Toggle API section visibility
-  const handleApiConnectionChange = (isConnected) => {
-    setShowApiSection(!isConnected);
+  // Toggle developer mode
+  const toggleDeveloperMode = () => {
+    setDeveloperMode(!developerMode);
   };
 
-  // Helper function to replace a word in a string with proper word boundaries
-  const replaceWordInString = (text, oldWord, newWord) => {
-    if (!text || !oldWord || !newWord) return text;
+  // Toggle admin mode
+  const toggleAdminMode = () => {
+    setAdminMode(!adminMode);
     
-    // Create a regex that matches the whole word only with word boundaries
-    const regex = new RegExp(`\\b${oldWord}\\b`, 'gi');
-    return text.replace(regex, newWord);
+    // Update URL to reflect admin mode state
+    const url = new URL(window.location);
+    if (!adminMode) {
+      url.searchParams.set('admin', 'true');
+    } else {
+      url.searchParams.delete('admin');
+    }
+    window.history.pushState({}, '', url);
   };
 
-  // Handle replacing an individual original component
-  const handleReplaceOriginalWord = async (index) => {
-    if (!statement || isReplacingWord || noMoreOriginalWords) return;
+  // Handle API connection change
+  const handleConnectionChange = (connected) => {
+    setIsConnected(connected);
     
-    setIsReplacingWord(true);
-    setReplacingWordIndex(index);
-    setIsReplacingOriginal(true);
+    // Update API status
+    if (openAIService.initialized) {
+      const status = openAIService.getConnectionStatus();
+      setApiStatus(status);
+    }
     
-    try {
-      const originalWord = statement.selectedComponents[index];
-      const activityVerb = statement.activityVerb;
-      
-      // Get current components excluding the one being replaced
-      const currentComponents = statement.selectedComponents.filter((_, i) => i !== index);
-      
-      // Generate a new word that isn't a duplicate of existing components
-      let newWord;
-      let attempts = 0;
-      const maxAttempts = 5;
-      
-      do {
-        newWord = await replaceIndividualWord(originalWord, activityVerb, usedWords, true);
-        attempts++;
-        
-        // If we've tried too many times, add a number to make it unique
-        if (attempts >= maxAttempts && isWordDuplicate(newWord, currentComponents)) {
-          newWord = `${newWord} ${Math.floor(Math.random() * 100) + 1}`;
-        }
-      } while (
-        isWordDuplicate(newWord, currentComponents) && 
-        attempts < maxAttempts
-      );
-      
-      // Update the statement with the new component
-      const updatedComponents = [...statement.selectedComponents];
-      updatedComponents[index] = newWord;
-      
-      // Update the activity verb by replacing the original word with the new word
-      // Only replace whole words with word boundaries to avoid partial replacements
-      let updatedActivityVerb = replaceWordInString(activityVerb, originalWord, newWord);
-      
-      // Create a new statement object to ensure state update
-      const updatedStatement = {
-        ...statement,
-        selectedComponents: updatedComponents,
-        activityVerb: updatedActivityVerb
-      };
-      
-      // Update the statement state with the new object
-      setStatement(updatedStatement);
-      
-      // Add the new word to used words
-      const updatedUsedWords = addUsedWords([newWord]);
-      setUsedWords(updatedUsedWords);
-      
-      // If we have replacements, update them too if they reference the original word
-      if (replacements.length > 0) {
-        const updatedReplacements = replacements.map(r => {
-          if (r.original === originalWord) {
-            return { ...r, original: newWord };
-          }
-          return r;
-        });
-        
-        // Update the replaced statement if it exists
-        if (replacedStatement) {
-          // Only replace whole words with word boundaries
-          let updatedReplacedStatement = replaceWordInString(replacedStatement, originalWord, newWord);
-          setReplacedStatement(updatedReplacedStatement);
-        }
-        
-        setReplacements(updatedReplacements);
-      }
-      
-      // Check if we've exhausted available words
-      checkAvailableWords();
-      
-      // Update repetition prevention stats
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
-    } catch (error) {
-      console.error('Error replacing original word:', error);
-    } finally {
-      setIsReplacingWord(false);
-      setReplacingWordIndex(null);
-      setIsReplacingOriginal(false);
+    // Hide API settings after successful connection
+    if (connected) {
+      setShowApiSettings(false);
     }
   };
 
-  // Handle replacing an individual replacement word
-  const handleReplaceReplacementWord = async (index) => {
-    if (!statement || !replacements.length || isReplacingWord || noMoreReplacementWords) return;
+  // Toggle API settings visibility
+  const toggleApiSettings = () => {
+    setShowApiSettings(!showApiSettings);
+  };
+
+  // Handle number of components change
+  const handleNumComponentsChange = (e) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value >= 1 && value <= 5) {
+      setNumComponents(value);
+    }
+  };
+
+  // Save UI configuration
+  const saveUiConfig = async (config) => {
+    try {
+      // Import localforage dynamically to avoid SSR issues
+      const localforage = await import('localforage');
+      await localforage.default.setItem('uiConfig', config);
+      setUiConfig(config);
+      
+      // Apply dark mode setting from config
+      if (config.darkMode !== undefined) {
+        setDarkMode(config.darkMode);
+      }
+      
+      console.log("Saved UI configuration:", config);
+    } catch (error) {
+      console.error("Error saving UI configuration:", error);
+      setError("Failed to save UI configuration");
+    }
+  };
+
+  // Generate a new activity and replacements simultaneously
+  const generateActivityAndReplacements = async () => {
+    if (!registryInitialized) {
+      setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
     
-    setIsReplacingWord(true);
-    setReplacingWordIndex(index);
-    setIsReplacingOriginal(false);
+    setIsLoading(true);
+    setError(null);
     
     try {
-      const originalWord = replacements[index].original;
-      const currentReplacement = replacements[index].replacement;
+      // Check if OpenAI is connected
+      if (!isConnected) {
+        setError("Please connect to the OpenAI API first");
+        setShowApiSettings(true); // Show API settings if not connected
+        setIsLoading(false);
+        return;
+      }
       
-      // Get current replacements excluding the one being replaced
-      const currentReplacements = replacements
-        .filter((_, i) => i !== index)
-        .map(r => r.replacement);
+      // Use the statementGenerator to generate a new activity with the selected number of components
+      // This ensures proper no-repeat handling
+      const newStatement = await generateStatement(numComponents, usedWords);
       
-      // Generate a new replacement that isn't a duplicate
-      let newReplacement;
-      let attempts = 0;
-      const maxAttempts = 5;
+      // Set the statement
+      setStatement(newStatement);
       
-      do {
-        newReplacement = await replaceIndividualWord(originalWord, statement.activityVerb, usedWords, false);
-        attempts++;
-        
-        // If we've tried too many times, add a number to make it unique
-        if (attempts >= maxAttempts && currentReplacements.includes(newReplacement)) {
-          newReplacement = `${newReplacement} ${Math.floor(Math.random() * 100) + 1}`;
+      // Generate replacements for the new activity
+      const result = await replaceWords(newStatement, usedWords);
+      
+      // Update replacements
+      setReplacements(result.replacements);
+      
+      // Update used words
+      const newUsedWords = new Set(usedWords);
+      
+      // Add activity to used words
+      newUsedWords.add(newStatement.activityVerb.toLowerCase());
+      
+      // Add individual words from activity to prevent partial repeats
+      const activityWords = newStatement.activityVerb.toLowerCase().split(/\s+/);
+      for (const word of activityWords) {
+        if (word.length > 3) { // Only add significant words
+          newUsedWords.add(word);
         }
-      } while (
-        currentReplacements.includes(newReplacement) && 
-        attempts < maxAttempts
+      }
+      
+      // Add components to used words
+      for (const component of newStatement.selectedComponents) {
+        newUsedWords.add(component.toLowerCase());
+        
+        // Add individual words to prevent partial repeats
+        const componentWords = component.toLowerCase().split(/\s+/);
+        for (const word of componentWords) {
+          if (word.length > 3) { // Only add significant words
+            newUsedWords.add(word);
+          }
+        }
+      }
+      
+      // Add replacements to used words
+      for (const replacement of result.replacements) {
+        newUsedWords.add(replacement.replacement.toLowerCase());
+        
+        // Add individual words to prevent partial repeats
+        const words = replacement.replacement.toLowerCase().split(/\s+/);
+        for (const word of words) {
+          if (word.length > 3) { // Only add significant words
+            newUsedWords.add(word);
+          }
+        }
+      }
+      
+      setUsedWords(newUsedWords);
+      
+      console.log("Generated new activity:", newStatement.activityVerb);
+      console.log("Components:", newStatement.selectedComponents);
+      console.log("Replacements:", result.replacements);
+    } catch (error) {
+      console.error("Error generating activity and replacements:", error);
+      setError(`Error generating content: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate replacements for the current activity
+  const generateReplacements = async () => {
+    if (!registryInitialized) {
+      setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
+    if (!statement) {
+      setError("Please generate an activity first");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Check if OpenAI is connected
+      if (!isConnected) {
+        setError("Please connect to the OpenAI API first");
+        setShowApiSettings(true); // Show API settings if not connected
+        setIsLoading(false);
+        return;
+      }
+      
+      // Generate replacements
+      const result = await replaceWords(statement, usedWords);
+      
+      // Update replacements
+      setReplacements(result.replacements);
+      
+      // Update used words
+      const newUsedWords = new Set(usedWords);
+      for (const replacement of result.replacements) {
+        newUsedWords.add(replacement.replacement.toLowerCase());
+        
+        // Add individual words to prevent partial repeats
+        const words = replacement.replacement.toLowerCase().split(/\s+/);
+        for (const word of words) {
+          if (word.length > 3) { // Only add significant words
+            newUsedWords.add(word);
+          }
+        }
+      }
+      setUsedWords(newUsedWords);
+    } catch (error) {
+      console.error("Error generating replacements:", error);
+      setError(`Error generating replacements: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Replace a single replacement
+  const replaceReplacement = async (index) => {
+    if (!registryInitialized) {
+      setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
+    if (!statement || replacements.length === 0) {
+      setError("Please generate replacements first");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Check if OpenAI is connected
+      if (!isConnected) {
+        setError("Please connect to the OpenAI API first");
+        setShowApiSettings(true); // Show API settings if not connected
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get the current replacement
+      const currentReplacement = replacements[index];
+      
+      // Generate a new replacement
+      const newReplacement = await replaceIndividualWord(
+        currentReplacement.original,
+        statement.activityVerb,
+        usedWords,
+        false // not isOriginal
       );
       
-      // Update the replacements array
+      // Update the replacements
       const updatedReplacements = [...replacements];
       updatedReplacements[index] = {
-        original: originalWord,
+        original: currentReplacement.original,
         replacement: newReplacement
       };
       
       setReplacements(updatedReplacements);
       
-      // Update the replaced statement
-      if (replacedStatement) {
-        // Only replace whole words with word boundaries
-        let updatedReplacedStatement = replaceWordInString(replacedStatement, currentReplacement, newReplacement);
-        setReplacedStatement(updatedReplacedStatement);
+      // Update used words
+      const newUsedWords = new Set(usedWords);
+      newUsedWords.add(newReplacement.toLowerCase());
+      
+      // Add individual words to prevent partial repeats
+      const words = newReplacement.toLowerCase().split(/\s+/);
+      for (const word of words) {
+        if (word.length > 3) { // Only add significant words
+          newUsedWords.add(word);
+        }
       }
       
-      // Add the new word to used words
-      const updatedUsedWords = addUsedWords([newReplacement]);
-      setUsedWords(updatedUsedWords);
-      
-      // Check if we've exhausted available words
-      checkAvailableWords();
-      
-      // Update repetition prevention stats
-      const stats = await getRepetitionPreventionStatsUnified();
-      setRepetitionStats(stats);
+      setUsedWords(newUsedWords);
     } catch (error) {
-      console.error('Error replacing replacement word:', error);
+      console.error("Error replacing replacement:", error);
+      setError(`Error replacing replacement: ${error.message}`);
     } finally {
-      setIsReplacingWord(false);
-      setReplacingWordIndex(null);
-      setIsReplacingOriginal(false);
+      setIsLoading(false);
     }
   };
 
-  return (
-    <div className={`app-container ${darkMode ? 'dark-mode' : ''}`}>
-      <header className="app-header">
-        <div className="header-content">
-          <h1 className="app-title">The Things Generator</h1>
-          <div className="header-controls">
-            <button 
-              className="theme-toggle"
-              onClick={toggleDarkMode}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-            {showApiSection && (
-              <div className="api-key-section">
-                <ApiKeyInput onConnectionChange={handleApiConnectionChange} />
+  // Simplify the current activity
+  const simplifyActivity = async () => {
+    if (!registryInitialized) {
+      setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
+    if (!statement) {
+      setError("Please generate an activity first");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Check if OpenAI is connected
+      if (!isConnected) {
+        setError("Please connect to the OpenAI API first");
+        setShowApiSettings(true); // Show API settings if not connected
+        setIsLoading(false);
+        return;
+      }
+      
+      // Simplify the activity
+      const simplifiedActivity = await openAIService.simplifyActivity(statement);
+      
+      // Set the statement
+      setStatement(simplifiedActivity);
+      
+      // Clear replacements
+      setReplacements([]);
+    } catch (error) {
+      console.error("Error simplifying activity:", error);
+      setError(`Error simplifying activity: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Render the app in developer mode
+  if (developerMode || adminMode) {
+    return (
+      <DeveloperMode 
+        initialConfig={uiConfig}
+        onSave={saveUiConfig}
+        onExit={developerMode ? toggleDeveloperMode : toggleAdminMode}
+        isAdmin={adminMode}
+        darkMode={darkMode}
+        toggleDarkMode={toggleDarkMode}
+        appState={{
+          isConnected,
+          isLoading,
+          error,
+          statement,
+          replacements,
+          apiStatus,
+          numComponents,
+          registryInitialized
+        }}
+        appActions={{
+          generateActivityAndReplacements,
+          generateReplacements,
+          replaceReplacement,
+          simplifyActivity,
+          handleNumComponentsChange,
+          toggleApiSettings,
+          handleConnectionChange
+        }}
+      />
+    );
+  }
+
+  // Apply UI configuration if available
+  const renderWithUiConfig = () => {
+    // If we have a UI configuration, use it to render the UI elements
+    if (uiConfig && uiConfig.elements) {
+      // Find the elements we need
+      const headerElement = uiConfig.elements.find(el => el.id === 'header');
+      const generateButton = uiConfig.elements.find(el => el.id === 'generate-button');
+      // Removed replacementsButton reference since we're removing this button
+      const simplifyButton = uiConfig.elements.find(el => el.id === 'simplify-button');
+      const componentSelector = uiConfig.elements.find(el => el.id === 'component-selector');
+      const activityDisplay = uiConfig.elements.find(el => el.id === 'activity-display');
+      const replacementsContainer = uiConfig.elements.find(el => el.id === 'replacements-container');
+      const timerElement = uiConfig.elements.find(el => el.id === 'timer');
+      
+      return (
+        <div className="app">
+          <header className="app-header">
+            {headerElement ? (
+              <h1 style={headerElement.style}>{headerElement.content}</h1>
+            ) : (
+              <h1>The Things Generator</h1>
+            )}
+            <div className="header-controls">
+              <div className="theme-toggle" onClick={toggleDarkMode}>
+                <span className="theme-icon">
+                  {darkMode ? '☀️' : '🌙'}
+                </span>
+                {darkMode ? 'Light Mode' : 'Dark Mode'}
+              </div>
+              <div className="api-status-indicator" onClick={toggleApiSettings}>
+                API: 
+                <span className={`status-badge ${apiStatus.status}`}>
+                  {apiStatus.status === 'disconnected' && 'Disconnected'}
+                  {apiStatus.status === 'connecting' && 'Connecting...'}
+                  {apiStatus.status === 'connected' && 'Connected'}
+                  {apiStatus.status === 'error' && 'Error'}
+                </span>
+                {apiStatus.error && (
+                  <span className="api-error-message" title={apiStatus.error}>
+                    ⚠️
+                  </span>
+                )}
+                <span className="settings-toggle">⚙️</span>
+              </div>
+              <div className="dev-mode-toggle" onClick={toggleDeveloperMode}>
+                <span className="dev-icon">🛠️</span>
+                Developer Mode
+              </div>
+            </div>
+          </header>
+          
+          <main className="app-content">
+            {showApiSettings && (
+              <div className="api-settings-panel">
+                <div className="panel-header">
+                  <h3>API Connection</h3>
+                  <button className="close-button" onClick={toggleApiSettings}>×</button>
+                </div>
+                <ApiKeyInput onConnectionChange={handleConnectionChange} />
               </div>
             )}
-          </div>
-        </div>
-      </header>
-      
-      <main className="app-main">
-        <div className="controls-section">
-          <div className="component-count">
-            <label htmlFor="componentCount">Components:</label>
-            <select 
-              id="componentCount" 
-              value={numComponents} 
-              onChange={handleComponentCountChange}
-              disabled={isLoading}
-            >
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
-          </div>
-          
-          <div className="main-buttons">
-            <button 
-              className="generate-button"
-              onClick={handleGenerateStatement}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Generating...' : 'New Thing'}
-            </button>
             
-            {statement && showSimplify && (
-              <button 
-                className="simplify-button"
-                onClick={handleSimplifyActivity}
-                disabled={isSimplifying || isLoading}
-              >
-                {isSimplifying ? 'Simplifying...' : 'Simplify'}
-              </button>
-            )}
-          </div>
-        </div>
-        
-        <div className="content-container">
-          <div className="unified-panel">
-            {statement && (
-              <div className="content-panel">
-                <div className="activity-section">
-                  <h2>Activity:</h2>
-                  <p className="activity-text">{statement.activityVerb}</p>
-                </div>
-                
-                <div className="components-section">
-                  <h3>Components:</h3>
-                  <div className="components-container">
-                    {statement.selectedComponents.map((component, index) => (
-                      <div key={`component-${index}-${component}`} className="component-item">
-                        <div className="component-button">
-                          {component}
-                        </div>
-                        <button 
-                          className={`replace-word-button ${noMoreOriginalWords ? 'disabled' : ''}`}
-                          onClick={() => handleReplaceOriginalWord(index)}
-                          disabled={isReplacingWord || noMoreOriginalWords}
-                          title={noMoreOriginalWords ? "No more words available" : "Replace this component"}
-                        >
-                          {isReplacingWord && isReplacingOriginal && replacingWordIndex === index ? (
-                            <span className="loading-spinner">↻</span>
-                          ) : (
-                            <span>↻</span>
-                          )}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  {noMoreOriginalWords && (
-                    <p className="no-more-words-message">No more component words available.</p>
+            <div className="generator-section">
+              <div className="controls-container">
+                <div className="controls">
+                  {generateButton && (
+                    <button 
+                      className="generate-button"
+                      onClick={generateActivityAndReplacements}
+                      disabled={isLoading || !isConnected || !registryInitialized}
+                      style={generateButton.style}
+                    >
+                      {isLoading ? 'Generating...' : generateButton.content}
+                    </button>
+                  )}
+                  
+                  {/* Removed Generate New Replacements button */}
+                  
+                  {simplifyButton && (
+                    <button 
+                      className="simplify-button"
+                      onClick={simplifyActivity}
+                      disabled={isLoading || !statement || !isConnected || !registryInitialized}
+                      style={simplifyButton.style}
+                    >
+                      {simplifyButton.content}
+                    </button>
                   )}
                 </div>
                 
-                {replacedStatement && (
-                  <div className="replacement-section">
-                    <p>{replacedStatement}</p>
-                    
-                    {replacements.length > 0 && (
-                      <div className="replacements-list">
-                        <h4>Replacements:</h4>
-                        <ul>
-                          {replacements.map((replacement, index) => (
-                            <li key={`replacement-${index}-${replacement.replacement}`} className="replacement-item">
-                              <div className="replacement-text-container">
-                                <span className="original">{replacement.original}</span> → 
-                                <span className="replacement">{replacement.replacement}</span>
-                              </div>
-                              <button 
-                                className={`replace-word-button ${noMoreReplacementWords ? 'disabled' : ''}`}
-                                onClick={() => handleReplaceReplacementWord(index)}
-                                disabled={isReplacingWord || noMoreReplacementWords}
-                                title={noMoreReplacementWords ? "No more replacement words available" : "Replace this word"}
-                              >
-                                {isReplacingWord && !isReplacingOriginal && replacingWordIndex === index ? (
-                                  <span className="loading-spinner">↻</span>
-                                ) : (
-                                  <span>↻</span>
-                                )}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                        {noMoreReplacementWords && (
-                          <p className="no-more-words-message">No more replacement words available.</p>
-                        )}
-                      </div>
-                    )}
+                {componentSelector && (
+                  <div className="component-selector" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    ...componentSelector.style
+                  }}>
+                    <label htmlFor="numComponents">{componentSelector.label}</label>
+                    <select 
+                      id="numComponents" 
+                      value={numComponents} 
+                      onChange={handleNumComponentsChange}
+                      disabled={isLoading}
+                      style={{
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--panel-background)',
+                        color: 'var(--text-color)',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      {componentSelector.options.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
-            )}
-            
-            {!statement && (
-              <div className="empty-state">
-                <p>Click "New Thing" to generate an activity.</p>
-              </div>
-            )}
-          </div>
+              
+              {error && (
+                <div className="error-message">
+                  {error}
+                </div>
+              )}
+              
+              {statement && activityDisplay && (
+                <div className="activity-display" style={activityDisplay.style}>
+                  <h2>Thing: {statement.activityVerb}</h2>
+                </div>
+              )}
+              
+              {replacementsContainer && (
+                <div className="replacements-container" style={replacementsContainer.style}>
+                  <h3 style={{ 
+                    color: 'var(--secondary-color)',
+                    marginBottom: '1rem',
+                    fontSize: '1.2rem',
+                    paddingBottom: '0.5rem',
+                    borderBottom: '1px solid var(--border-color)'
+                  }}>
+                    Replacements
+                  </h3>
+                  
+                  {replacements.length > 0 ? (
+                    <ul className="replacements-list" style={{
+                      listStyle: 'none',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
+                      gap: '1rem'
+                    }}>
+                      {replacements.map((replacement, index) => (
+                        <li key={`replacement-${index}`}>
+                          <div className="replacement-item" style={{
+                            padding: '0.75rem',
+                            backgroundColor: 'var(--component-bg)',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '0.75rem'
+                          }}>
+                            <span className="original-text" style={{
+                              fontWeight: '600',
+                              color: 'var(--original-text)',
+                              flexShrink: '0',
+                              minWidth: '100px',
+                              maxWidth: '30%'
+                            }}>
+                              {replacement.original}
+                            </span>
+                            <span className="equals-sign" style={{
+                              color: 'var(--equals-color)',
+                              fontWeight: 'bold',
+                              fontSize: '1.8rem',
+                              flexShrink: '0',
+                              display: 'inline-block',
+                              backgroundColor: 'var(--equals-bg)',
+                              padding: '0.1rem 0.75rem',
+                              borderRadius: '4px',
+                              lineHeight: '1.5',
+                              minWidth: '2.5rem',
+                              textAlign: 'center'
+                            }}>
+                              =
+                            </span>
+                            <span className="replacement-text" style={{
+                              fontWeight: '600',
+                              color: 'var(--replacement-text)',
+                              flex: '1',
+                              marginRight: '0.5rem'
+                            }}>
+                              {replacement.replacement}
+                            </span>
+                            <button 
+                              className="replace-button"
+                              onClick={() => replaceReplacement(index)}
+                              disabled={isLoading || !isConnected || !registryInitialized}
+                              style={{
+                                backgroundColor: 'var(--accent-color)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.4rem 0.75rem',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                flexShrink: '0'
+                              }}
+                            >
+                              Replace
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="empty-replacements" style={{
+                      padding: '2rem',
+                      backgroundColor: 'var(--component-bg)',
+                      borderRadius: '4px',
+                      textAlign: 'center',
+                      color: 'var(--component-text)',
+                      fontStyle: 'italic'
+                    }}>
+                      No replacements generated yet
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {timerElement && (
+                <div className="timer-wrapper" style={timerElement.style}>
+                  <Timer darkMode={darkMode} />
+                </div>
+              )}
+            </div>
+          </main>
           
-          <div className="timer-container">
-            <Timer darkMode={darkMode} />
-            <div className="repetition-stats">
-              <h4>Repetition Prevention</h4>
-              <div className="stats-grid">
-                <div className="stat-item">
-                  <span className="stat-label">Activities:</span>
-                  <span className="stat-value">{repetitionStats.activities}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Components:</span>
-                  <span className="stat-value">{repetitionStats.components}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Replacements:</span>
-                  <span className="stat-value">{repetitionStats.replacements}</span>
-                </div>
-              </div>
+          <footer className="app-footer">
+            <p>The Things Generator - A word replacement tool for charades-like gameplay</p>
+          </footer>
+        </div>
+      );
+    }
+    
+    // Default rendering if no UI configuration is available
+    return renderDefaultUI();
+  };
+
+  // Render the default UI
+  const renderDefaultUI = () => {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1>The Things Generator</h1>
+          <div className="header-controls">
+            <div className="theme-toggle" onClick={toggleDarkMode}>
+              <span className="theme-icon">
+                {darkMode ? '☀️' : '🌙'}
+              </span>
+              {darkMode ? 'Light Mode' : 'Dark Mode'}
+            </div>
+            <div className="api-status-indicator" onClick={toggleApiSettings}>
+              API: 
+              <span className={`status-badge ${apiStatus.status}`}>
+                {apiStatus.status === 'disconnected' && 'Disconnected'}
+                {apiStatus.status === 'connecting' && 'Connecting...'}
+                {apiStatus.status === 'connected' && 'Connected'}
+                {apiStatus.status === 'error' && 'Error'}
+              </span>
+              {apiStatus.error && (
+                <span className="api-error-message" title={apiStatus.error}>
+                  ⚠️
+                </span>
+              )}
+              <span className="settings-toggle">⚙️</span>
+            </div>
+            <div className="dev-mode-toggle" onClick={toggleDeveloperMode}>
+              <span className="dev-icon">🛠️</span>
+              Developer Mode
             </div>
           </div>
-        </div>
-      </main>
-      
-      <footer className="app-footer">
-        <p>Used words: {usedWords.size}</p>
-        {!showApiSection && (
-          <button 
-            className="api-settings-button"
-            onClick={() => setShowApiSection(true)}
-          >
-            API Settings
-          </button>
-        )}
-      </footer>
-    </div>
-  );
+        </header>
+        
+        <main className="app-content">
+          {showApiSettings && (
+            <div className="api-settings-panel">
+              <div className="panel-header">
+                <h3>API Connection</h3>
+                <button className="close-button" onClick={toggleApiSettings}>×</button>
+              </div>
+              <ApiKeyInput onConnectionChange={handleConnectionChange} />
+            </div>
+          )}
+          
+          <div className="generator-section">
+            <div className="controls-container">
+              <div className="controls">
+                <button 
+                  className="generate-button"
+                  onClick={generateActivityAndReplacements}
+                  disabled={isLoading || !isConnected || !registryInitialized}
+                >
+                  {isLoading ? 'Generating...' : 'Generate Activity'}
+                </button>
+                
+                {/* Removed Generate New Replacements button */}
+                
+                <button 
+                  className="simplify-button"
+                  onClick={simplifyActivity}
+                  disabled={isLoading || !statement || !isConnected || !registryInitialized}
+                >
+                  Simplify Activity
+                </button>
+              </div>
+              
+              <div className="component-selector">
+                <label htmlFor="numComponents">Number of Components:</label>
+                <select 
+                  id="numComponents" 
+                  value={numComponents} 
+                  onChange={handleNumComponentsChange}
+                  disabled={isLoading}
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+            </div>
+            
+            {error && (
+              <div className="error-message">
+                {error}
+              </div>
+            )}
+            
+            {statement && (
+              <div className="activity-display">
+                <h2>Thing: {statement.activityVerb}</h2>
+                
+                <div className="replacements-container">
+                  <h3>Replacements</h3>
+                  {replacements.length > 0 ? (
+                    <ul className="replacements-list">
+                      {replacements.map((replacement, index) => (
+                        <li key={`replacement-${index}`}>
+                          <div className="replacement-item">
+                            <span className="original-text">{replacement.original}</span>
+                            <span className="equals-sign">=</span>
+                            <span className="replacement-text">{replacement.replacement}</span>
+                            <button 
+                              className="replace-button"
+                              onClick={() => replaceReplacement(index)}
+                              disabled={isLoading || !isConnected || !registryInitialized}
+                            >
+                              Replace
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="empty-replacements">
+                      No replacements generated yet
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="timer-wrapper">
+              <Timer darkMode={darkMode} />
+            </div>
+          </div>
+        </main>
+        
+        <footer className="app-footer">
+          <p>The Things Generator - A word replacement tool for charades-like gameplay</p>
+        </footer>
+      </div>
+    );
+  };
+
+  // Render the app with UI configuration if available
+  return renderWithUiConfig();
 }
 
 export default App;

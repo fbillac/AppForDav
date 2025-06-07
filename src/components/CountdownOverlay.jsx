@@ -1,14 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const CountdownOverlay = ({ onComplete, darkMode }) => {
   const [count, setCount] = useState(10);
+  const [showFinalAnimation, setShowFinalAnimation] = useState(false);
+  const audioRef = useRef(null);
   
   useEffect(() => {
     if (count <= 0) {
-      if (onComplete) {
-        onComplete();
+      // Play the buzzer sound
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.error("Error playing buzzer sound:", e));
       }
-      return;
+      
+      // Show the final animation
+      setShowFinalAnimation(true);
+      
+      // Wait for animation to complete before calling onComplete
+      const animationTimer = setTimeout(() => {
+        if (onComplete) {
+          onComplete();
+        }
+      }, 2000); // Animation duration
+      
+      return () => clearTimeout(animationTimer);
     }
     
     const timer = setTimeout(() => {
@@ -20,7 +34,22 @@ const CountdownOverlay = ({ onComplete, darkMode }) => {
   
   return (
     <div className={`countdown-overlay ${darkMode ? 'dark-mode' : ''}`}>
-      <div className="countdown-number">{count}</div>
+      {!showFinalAnimation ? (
+        <div className={`countdown-number ${count <= 3 ? 'countdown-warning' : ''}`}>
+          {count}
+        </div>
+      ) : (
+        <div className="buzzer-animation">
+          <div className="buzzer-circle"></div>
+          <div className="buzzer-text">TIME'S UP!</div>
+        </div>
+      )}
+      
+      {/* NBA horn sound for buzzer */}
+      <audio ref={audioRef} preload="auto">
+        <source src="/nba-horn-sfx.mp3" type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
     </div>
   );
 };

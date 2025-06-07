@@ -1,0 +1,269 @@
+/* Developer Mode Styles */
+.dev-mode-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--background-color);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dev-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--panel-background);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.dev-mode-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.dev-mode-controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.dev-mode-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.theme-toggle-button {
+  background-color: var(--component-bg);
+  color: var(--component-text);
+}
+
+.theme-toggle-button:hover {
+  background-color: var(--border-color);
+}
+
+.save-button {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.save-button:hover {
+  background-color: #3d8b40;
+}
+
+.exit-button {
+  background-color: var(--error-color);
+  color: white;
+}
+
+.exit-button:hover {
+  background-color: #d32f2f;
+}
+
+.dev-mode-workspace {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1rem;
+  padding: 1rem;
+  height: calc(100vh - 70px);
+  overflow: hidden;
+}
+
+.canvas-area {
+  background-color: var(--panel-background);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  overflow: auto;
+  position: relative;
+  height: 100%;
+}
+
+.properties-panel {
+  background-color: var(--panel-background);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  padding: 1rem;
+  overflow: auto;
+  height: 100%;
+}
+
+.properties-panel h3 {
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+  font-size: 1.2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.property-group {
+  margin-bottom: 1.5rem;
+}
+
+.property-group h4 {
+  margin-bottom: 0.5rem;
+  color: var(--secondary-color);
+  font-size: 1rem;
+}
+
+.property-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.property-label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.property-input {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  width: 120px;
+}
+
+.color-picker-container {
+  position: relative;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.color-picker-wrapper {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  margin-top: 10px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.draggable-element {
+  position: absolute;
+  cursor: move;
+  border: 2px dashed transparent;
+  transition: border-color 0.2s;
+}
+
+.draggable-element.selected {
+  border-color: var(--primary-color);
+}
+
+.no-selection {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* React Resizable Styles */
+.react-resizable {
+  position: relative;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary-color);
+  border-radius: 50%;
+  visibility: hidden;
+}
+
+.selected .react-resizable-handle {
+  visibility: visible;
+}
+
+.react-resizable-handle-n {
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: n-resize;
+}
+
+.react-resizable-handle-e {
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%);
+  cursor: e-resize;
+}
+
+.react-resizable-handle-s {
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+}
+
+.react-resizable-handle-w {
+  top: 50%;
+  left: -5px;
+  transform: translateY(-50%);
+  cursor: w-resize;
+}
+
+.react-resizable-handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: ne-resize;
+}
+
+.react-resizable-handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: sw-resize;
+}
+
+.react-resizable-handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nw-resize;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dev-mode-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 300px;
+  }
+  
+  .dev-mode-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .dev-mode-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

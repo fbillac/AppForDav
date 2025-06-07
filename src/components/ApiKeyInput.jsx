@@ -1,137 +1,210 @@
 import React, { useState, useEffect } from 'react';
 import openAIService from '../utils/openaiService';
+import './ApiKeyInput.css';
 
 const ApiKeyInput = ({ onConnectionChange }) => {
   const [apiKey, setApiKey] = useState('');
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [showInput, setShowInput] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showKey, setShowKey] = useState(false);
 
+  // Load API key from localStorage on component mount
   useEffect(() => {
-    // Check if API key is stored in localStorage
     const storedKey = localStorage.getItem('openai_api_key');
     if (storedKey) {
-      // Try to initialize with the stored key
-      const initialized = openAIService.initialize(storedKey);
-      setIsInitialized(initialized);
       setApiKey(storedKey);
-      
-      // Notify parent component about connection status
-      if (onConnectionChange) {
-        onConnectionChange(initialized);
-      }
+      initializeWithStoredKey(storedKey);
     }
-  }, [onConnectionChange]);
+  }, []);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Clear previous messages
-    setError('');
-    setSuccess('');
-    
-    if (!apiKey.trim()) {
-      setError('API key is required');
-      return;
-    }
-    
-    // Basic validation for API key format
-    if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
-      setError('Invalid API key format. OpenAI API keys start with "sk-" and are longer than 20 characters.');
-      return;
-    }
-    
-    // Try to initialize OpenAI service with the provided key
-    const initialized = openAIService.initialize(apiKey);
-    
-    if (initialized) {
-      // Store the API key in localStorage
-      localStorage.setItem('openai_api_key', apiKey);
-      setIsInitialized(true);
-      setSuccess('OpenAI API key set successfully!');
-      setShowInput(false);
+  // Initialize OpenAI service with stored key
+  const initializeWithStoredKey = async (key) => {
+    setIsConnecting(true);
+    setConnectionStatus('connecting');
+    setErrorMessage('');
+
+    try {
+      // Initialize the OpenAI service
+      const initialized = openAIService.initialize(key);
       
-      // Notify parent component about connection status
-      if (onConnectionChange) {
-        onConnectionChange(true);
+      if (!initialized) {
+        const status = openAIService.getConnectionStatus();
+        setConnectionStatus('error');
+        setErrorMessage(status.error || 'Failed to initialize OpenAI service');
+        onConnectionChange(false);
+        return;
       }
-    } else {
-      setError('Failed to initialize OpenAI service. Please check your API key and ensure it has proper permissions.');
+      
+      // Verify the connection
+      console.log("Verifying connection with stored key...");
+      const isConnected = await openAIService.verifyConnection();
+      
+      if (isConnected) {
+        setConnectionStatus('connected');
+        onConnectionChange(true);
+      } else {
+        const status = openAIService.getConnectionStatus();
+        setConnectionStatus('error');
+        setErrorMessage(status.error || 'Failed to connect to OpenAI API');
+        onConnectionChange(false);
+      }
+    } catch (error) {
+      console.error("Error initializing with stored key:", error);
+      setConnectionStatus('error');
+      setErrorMessage(error.message || 'An error occurred while connecting');
+      onConnectionChange(false);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
-  const handleReset = () => {
+  // Handle API key input change
+  const handleApiKeyChange = (e) => {
+    setApiKey(e.target.value);
+  };
+
+  // Handle connect button click
+  const handleConnect = async () => {
+    if (!apiKey) {
+      setErrorMessage('API key is required');
+      return;
+    }
+
+    setIsConnecting(true);
+    setConnectionStatus('connecting');
+    setErrorMessage('');
+
+    try {
+      // Initialize the OpenAI service
+      const initialized = openAIService.initialize(apiKey);
+      
+      if (!initialized) {
+        const status = openAIService.getConnectionStatus();
+        setConnectionStatus('error');
+        setErrorMessage(status.error || 'Failed to initialize OpenAI service');
+        onConnectionChange(false);
+        return;
+      }
+      
+      // Verify the connection
+      console.log("Verifying connection with new key...");
+      const isConnected = await openAIService.verifyConnection();
+      
+      if (isConnected) {
+        // Save the API key to localStorage
+        localStorage.setItem('openai_api_key', apiKey);
+        
+        setConnectionStatus('connected');
+        onConnectionChange(true);
+      } else {
+        const status = openAIService.getConnectionStatus();
+        setConnectionStatus('error');
+        setErrorMessage(status.error || 'Failed to connect to OpenAI API');
+        onConnectionChange(false);
+      }
+    } catch (error) {
+      console.error("Error connecting to OpenAI:", error);
+      setConnectionStatus('error');
+      setErrorMessage(error.message || 'An error occurred while connecting');
+      onConnectionChange(false);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Handle disconnect button click
+  const handleDisconnect = () => {
     // Clear the API key from localStorage
     localStorage.removeItem('openai_api_key');
-    setApiKey('');
-    setIsInitialized(false);
-    setShowInput(true);
-    setSuccess('');
-    setError('');
     
-    // Notify parent component about connection status
-    if (onConnectionChange) {
-      onConnectionChange(false);
-    }
+    // Reset the state
+    setApiKey('');
+    setConnectionStatus('disconnected');
+    setErrorMessage('');
+    
+    // Notify parent component
+    onConnectionChange(false);
+  };
+
+  // Toggle API key visibility
+  const toggleShowKey = () => {
+    setShowKey(!showKey);
   };
 
   return (
-    <div className="api-key-container">
-      {isInitialized ? (
-        <div className="api-status">
-          <span className="api-status-text">API: <span className="api-connected">Connected</span></span>
+    <div className="api-key-input">
+      <div className="input-group">
+        <label htmlFor="apiKey">API Key:</label>
+        <div className="key-input-container">
+          <input
+            type={showKey ? "text" : "password"}
+            id="apiKey"
+            value={apiKey}
+            onChange={handleApiKeyChange}
+            placeholder="Enter your OpenAI API key"
+            disabled={isConnecting || connectionStatus === 'connected'}
+          />
           <button 
-            className="api-reset-button"
-            onClick={handleReset}
+            type="button" 
+            className="toggle-visibility-button"
+            onClick={toggleShowKey}
+            aria-label={showKey ? "Hide API key" : "Show API key"}
           >
-            Reset
+            {showKey ? '👁️' : '👁️‍🗨️'}
           </button>
         </div>
-      ) : (
-        <div className="api-status">
-          <span className="api-status-text">API: <span className="api-disconnected">Disconnected</span></span>
-          <button 
-            className="api-connect-button"
-            onClick={() => setShowInput(true)}
-          >
-            Connect
-          </button>
+      </div>
+      
+      <div className="connection-status">
+        Status: 
+        <span className={`status-indicator ${connectionStatus}`}>
+          {connectionStatus === 'disconnected' && 'Disconnected'}
+          {connectionStatus === 'connecting' && 'Connecting...'}
+          {connectionStatus === 'connected' && 'Connected'}
+          {connectionStatus === 'error' && 'Error'}
+        </span>
+      </div>
+      
+      {errorMessage && (
+        <div className="error-message">
+          {errorMessage}
         </div>
       )}
       
-      {showInput && (
-        <div className="api-key-form-container">
-          <form onSubmit={handleSubmit} className="api-key-form">
-            <div className="form-group">
-              <label htmlFor="apiKey">OpenAI API Key:</label>
-              <input
-                type="password"
-                id="apiKey"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your OpenAI API key"
-                className="api-key-input"
-              />
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="api-key-submit">Connect</button>
-              <button 
-                type="button" 
-                className="api-key-cancel"
-                onClick={() => setShowInput(false)}
-              >
-                Cancel
-              </button>
-            </div>
-            {error && <div className="api-key-error">{error}</div>}
-          </form>
-        </div>
-      )}
+      <div className="api-buttons">
+        {connectionStatus !== 'connected' ? (
+          <button 
+            className="connect-button"
+            onClick={handleConnect}
+            disabled={isConnecting || !apiKey}
+          >
+            {isConnecting ? 'Connecting...' : 'Connect'}
+          </button>
+        ) : (
+          <button 
+            className="disconnect-button"
+            onClick={handleDisconnect}
+          >
+            Disconnect
+          </button>
+        )}
+      </div>
       
-      {success && <div className="api-key-success">{success}</div>}
+      <div className="api-info">
+        <p>
+          You need an OpenAI API key to use this app. Get one at{' '}
+          <a 
+            href="https://platform.openai.com/api-keys" 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            platform.openai.com
+          </a>
+        </p>
+      </div>
     </div>
   );
-}
+};
 
 export default ApiKeyInput;
