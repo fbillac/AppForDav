@@ -3,6 +3,58 @@ import { isPersonOrRole, getRandomCelebrityOrCharacter, getRandomMaterial } from
 import { checkReplacementExistsUnified, addReplacementUnified } from './repetitionPrevention';
 import openAIService from './openaiService';
 
+// Helper function to check if a term is generic
+function isGenericTerm(term) {
+  if (!term || typeof term !== 'string') return true;
+  
+  const genericTerms = [
+    "equipment", "supplies", "materials", "tools", "items", "accessories",
+    "device", "apparatus", "implement", "utensil", "gadget", "appliance",
+    "gear", "kit", "set", "stuff", "things", "objects", "prop", "instrument",
+    "professional", "worker", "person", "individual", "specialist", "expert",
+    "location", "place", "area", "space", "room", "facility", "venue",
+    "component", "part", "piece", "element", "unit", "module", "section",
+    "tool", "supply", "material", "item", "accessory", "device", "apparatus",
+    "implement", "utensil", "gadget", "appliance", "gear", "kit", "set"
+  ];
+  
+  // Check if the term contains any generic terms
+  const lowerTerm = term.toLowerCase();
+  return genericTerms.some(genericTerm => {
+    // Check for exact match or if it's the main part of the term
+    return lowerTerm === genericTerm || 
+           lowerTerm.startsWith(genericTerm + " ") || 
+           lowerTerm.endsWith(" " + genericTerm) ||
+           lowerTerm.includes(" " + genericTerm + " ");
+  });
+}
+
+// Helper function to generate specific replacements based on category
+function generateSpecificReplacement(category) {
+  // Specific replacements for different categories
+  const specificReplacements = {
+    tools: ["hammer", "screwdriver", "wrench", "pliers", "saw", "drill", "chisel", "mallet", "clamp"],
+    kitchenItems: ["pot", "pan", "spatula", "whisk", "bowl", "spoon", "knife", "cutting board", "plate"],
+    furniture: ["chair", "table", "desk", "couch", "sofa", "bed", "bookshelf", "cabinet", "dresser"],
+    electronics: ["computer", "phone", "tablet", "laptop", "television", "camera", "headphones", "speaker"],
+    clothing: ["shirt", "pants", "jacket", "hat", "gloves", "shoes", "boots", "socks", "scarf"],
+    vehicles: ["car", "truck", "bus", "train", "airplane", "bicycle", "motorcycle", "boat", "ship"],
+    instruments: ["guitar", "piano", "drum", "violin", "flute", "trumpet", "saxophone", "harp"],
+    sports: ["baseball", "football", "basketball", "soccer", "tennis", "golf", "hockey", "volleyball"],
+    foodItems: ["apple", "banana", "orange", "bread", "cheese", "meat", "vegetable", "fruit"],
+    animals: ["dog", "cat", "bird", "fish", "horse", "cow", "sheep", "chicken", "pig"],
+    professions: ["doctor", "teacher", "engineer", "chef", "artist", "musician", "writer", "athlete"]
+  };
+  
+  // Select a random category different from the input category
+  const categories = Object.keys(specificReplacements).filter(cat => cat !== category);
+  const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+  
+  // Select a random item from the category
+  const items = specificReplacements[randomCategory];
+  return items[Math.floor(Math.random() * items.length)];
+}
+
 // Lists of unrelated objects and characters for replacements (fallback if OpenAI fails)
 export const unrelatedObjects = [
   // Common household items
@@ -176,9 +228,10 @@ export const replaceWords = async (statement, usedWords) => {
         for (let i = 0; i < replacements.length; i++) {
           const replacement = replacements[i];
           
-          // Check if the replacement is too similar to the original
-          if (areWordsInSameCategory(replacement.original, replacement.replacement)) {
-            console.log(`Replacement "${replacement.replacement}" is too similar to "${replacement.original}", generating a new one...`);
+          // Check if the replacement is too similar to the original or is generic
+          if (areWordsInSameCategory(replacement.original, replacement.replacement) || 
+              isGenericTerm(replacement.replacement)) {
+            console.log(`Replacement "${replacement.replacement}" is too similar to "${replacement.original}" or is generic, generating a new one...`);
             
             // Generate a new replacement that's truly incongruous
             let newReplacement;
@@ -189,7 +242,8 @@ export const replaceWords = async (statement, usedWords) => {
               newReplacement = await replaceIndividualWord(replacement.original, statement.activityVerb, usedWords, false, true);
               attempts++;
             } while (
-              areWordsInSameCategory(replacement.original, newReplacement) && 
+              (areWordsInSameCategory(replacement.original, newReplacement) || 
+               isGenericTerm(newReplacement)) && 
               attempts < maxAttempts
             );
             
@@ -265,7 +319,8 @@ const getIncongruousReplacement = (original, usedWordsLower) => {
     // If original is a person, replace with an object
     const availableObjects = unrelatedObjects.filter(obj => 
       !usedWordsLower.has(obj.toLowerCase()) &&
-      !areWordsInSameCategory(original, obj)
+      !areWordsInSameCategory(original, obj) &&
+      !isGenericTerm(obj)
     );
     
     if (availableObjects.length > 0) {
@@ -275,7 +330,8 @@ const getIncongruousReplacement = (original, usedWordsLower) => {
     // If original is an object, replace with a person/character
     const availableCharacters = unrelatedCharacters.filter(char => 
       !usedWordsLower.has(char.toLowerCase()) &&
-      !areWordsInSameCategory(original, char)
+      !areWordsInSameCategory(original, char) &&
+      !isGenericTerm(char)
     );
     
     if (availableCharacters.length > 0) {
@@ -285,7 +341,8 @@ const getIncongruousReplacement = (original, usedWordsLower) => {
     // If no characters are available, try to find an object from a different category
     const availableObjects = unrelatedObjects.filter(obj => 
       !usedWordsLower.has(obj.toLowerCase()) &&
-      !areWordsInSameCategory(original, obj)
+      !areWordsInSameCategory(original, obj) &&
+      !isGenericTerm(obj)
     );
     
     if (availableObjects.length > 0) {
@@ -293,15 +350,50 @@ const getIncongruousReplacement = (original, usedWordsLower) => {
     }
   }
   
-  // If we can't find a suitable replacement, generate a unique one
-  return `${isPerson ? 'object' : 'character'} #${Math.floor(Math.random() * 10000) + 1}`;
+  // If we can't find a suitable replacement, generate a specific one based on category
+  // Determine the category of the original word
+  for (const category in categories) {
+    const wordsInCategory = categories[category];
+    const isInCategory = wordsInCategory.some(item => 
+      original.toLowerCase().includes(item) || 
+      item.includes(original.toLowerCase())
+    );
+    
+    if (isInCategory) {
+      // Generate a specific replacement from a different category
+      return generateSpecificReplacement(category);
+    }
+  }
+  
+  // If we still can't determine a category, use a specific fallback
+  const specificFallbacks = [
+    "banana", "violin", "lighthouse", "cactus", "snowflake", 
+    "astronaut", "flamingo", "volcano", "submarine", "tornado"
+  ];
+  
+  return specificFallbacks[Math.floor(Math.random() * specificFallbacks.length)];
+};
+
+// Categories for determining word types
+const categories = {
+  tools: ["hammer", "screwdriver", "wrench", "pliers", "saw", "drill", "chisel", "mallet", "clamp"],
+  kitchenItems: ["pot", "pan", "spatula", "whisk", "bowl", "spoon", "knife", "cutting board", "plate"],
+  furniture: ["chair", "table", "desk", "couch", "sofa", "bed", "bookshelf", "cabinet", "dresser"],
+  electronics: ["computer", "phone", "tablet", "laptop", "television", "camera", "headphones", "speaker"],
+  clothing: ["shirt", "pants", "jacket", "hat", "gloves", "shoes", "boots", "socks", "scarf"],
+  vehicles: ["car", "truck", "bus", "train", "airplane", "bicycle", "motorcycle", "boat", "ship"],
+  instruments: ["guitar", "piano", "drum", "violin", "flute", "trumpet", "saxophone", "harp"],
+  sports: ["baseball", "football", "basketball", "soccer", "tennis", "golf", "hockey", "volleyball"],
+  foodItems: ["apple", "banana", "orange", "bread", "cheese", "meat", "vegetable", "fruit"],
+  animals: ["dog", "cat", "bird", "fish", "horse", "cow", "sheep", "chicken", "pig"],
+  professions: ["doctor", "teacher", "engineer", "chef", "artist", "musician", "writer", "athlete"]
 };
 
 // Replace an individual word with an unrelated one
 export const replaceIndividualWord = async (word, activityVerb, usedWords, isOriginalComponent = false, forceIncongruous = false) => {
   try {
     if (!word || typeof word !== 'string') {
-      return 'replacement';
+      return 'watermelon'; // Specific fallback instead of generic "replacement"
     }
     
     // Try to use OpenAI for generating a replacement or new component
@@ -319,6 +411,21 @@ export const replaceIndividualWord = async (word, activityVerb, usedWords, isOri
             usedWords
           );
           
+          // Check if the component is generic
+          if (isGenericTerm(newComponent)) {
+            // Try to generate a more specific component
+            const specificComponent = await openAIService.generateSpecificComponent(
+              activityVerb,
+              existingComponents,
+              usedWords
+            );
+            
+            // Add the new component to our repetition prevention system
+            await addReplacementUnified(specificComponent);
+            
+            return specificComponent;
+          }
+          
           // Add the new component to our repetition prevention system
           await addReplacementUnified(newComponent);
           
@@ -329,9 +436,10 @@ export const replaceIndividualWord = async (word, activityVerb, usedWords, isOri
           const replacements = await openAIService.generateReplacements([word], usedWords, forceIncongruous);
           
           if (replacements && replacements.length > 0 && replacements[0].replacement) {
-            // Verify the replacement is actually incongruous
-            if (forceIncongruous && areWordsInSameCategory(word, replacements[0].replacement)) {
-              console.log(`OpenAI replacement "${replacements[0].replacement}" is too similar to "${word}", falling back to local replacement...`);
+            // Verify the replacement is actually incongruous and not generic
+            if ((forceIncongruous && areWordsInSameCategory(word, replacements[0].replacement)) || 
+                isGenericTerm(replacements[0].replacement)) {
+              console.log(`OpenAI replacement "${replacements[0].replacement}" is too similar to "${word}" or is generic, falling back to local replacement...`);
               // Fall back to local replacement
               return await localReplaceWord(word, usedWords, forceIncongruous);
             }
@@ -352,7 +460,12 @@ export const replaceIndividualWord = async (word, activityVerb, usedWords, isOri
     return await localReplaceWord(word, usedWords, forceIncongruous);
   } catch (error) {
     console.error('Error replacing individual word:', error);
-    return `replacement ${Math.floor(Math.random() * 1000)}`;
+    // Return a specific fallback instead of a generic one
+    const specificFallbacks = [
+      "banana", "violin", "lighthouse", "cactus", "snowflake", 
+      "astronaut", "flamingo", "volcano", "submarine", "tornado"
+    ];
+    return specificFallbacks[Math.floor(Math.random() * specificFallbacks.length)];
   }
 };
 
@@ -368,13 +481,20 @@ const localReplaceWord = async (word, usedWords, forceIncongruous) => {
   if (forceIncongruous) {
     // For people/roles, use a celebrity or fictional character 20% of the time
     if (isPerson && Math.random() < 0.2) {
-      return getRandomCelebrityOrCharacter(usedWordsLower);
+      const celebrity = getRandomCelebrityOrCharacter(usedWordsLower);
+      // Check if the celebrity is generic
+      if (!isGenericTerm(celebrity)) {
+        return celebrity;
+      }
     }
     
     // For objects, use "made of" variation 20% of the time
     if (!isPerson && Math.random() < 0.2) {
       const material = getRandomMaterial(usedWordsLower);
-      return `made of ${material}`;
+      // Check if the material is generic
+      if (!isGenericTerm(material)) {
+        return `made of ${material}`;
+      }
     }
     
     const incongruousReplacement = getIncongruousReplacement(word, usedWordsLower);
@@ -385,12 +505,17 @@ const localReplaceWord = async (word, usedWords, forceIncongruous) => {
   if (isPerson) {
     // 50% chance to use a celebrity/character for people/roles
     if (Math.random() < 0.5) {
-      return getRandomCelebrityOrCharacter(usedWordsLower);
+      const celebrity = getRandomCelebrityOrCharacter(usedWordsLower);
+      // Check if the celebrity is generic
+      if (!isGenericTerm(celebrity)) {
+        return celebrity;
+      }
     }
     
     // Get available celebrities that haven't been used
     const availableCelebrities = unrelatedCharacters.filter(celeb => 
-      !usedWordsLower.has(celeb.toLowerCase())
+      !usedWordsLower.has(celeb.toLowerCase()) &&
+      !isGenericTerm(celeb)
     );
     
     // Further filter celebrities that exist in our repetition prevention system
@@ -408,20 +533,28 @@ const localReplaceWord = async (word, usedWords, forceIncongruous) => {
       return filteredCelebrities[randomIndex];
     }
     
-    // If we've exhausted all celebrities, generate a unique one
-    return `${getRandomCelebrityOrCharacter(usedWords)} ${Math.floor(Math.random() * 100) + 1}`;
+    // If we've exhausted all celebrities, use a specific fallback
+    const specificFallbacks = [
+      "Batman", "Wonder Woman", "Spider-Man", "Captain America", "Iron Man",
+      "Harry Potter", "Sherlock Holmes", "Darth Vader", "Luke Skywalker", "James Bond"
+    ];
+    return specificFallbacks[Math.floor(Math.random() * specificFallbacks.length)];
   }
   
   // If the word is not a person/role, replace with an unrelated object
   // 30% chance to use "made of" variation for objects
   if (Math.random() < 0.3) {
     const material = getRandomMaterial(usedWordsLower);
-    return `made of ${material}`;
+    // Check if the material is generic
+    if (!isGenericTerm(material)) {
+      return `made of ${material}`;
+    }
   }
   
   // Get available objects that haven't been used
   const availableObjects = unrelatedObjects.filter(obj => 
-    !usedWordsLower.has(obj.toLowerCase())
+    !usedWordsLower.has(obj.toLowerCase()) &&
+    !isGenericTerm(obj)
   );
   
   // Further filter objects that exist in our repetition prevention system
@@ -439,6 +572,10 @@ const localReplaceWord = async (word, usedWords, forceIncongruous) => {
     return filteredObjects[randomIndex];
   }
   
-  // If we've exhausted all objects, generate a unique one
-  return `${unrelatedObjects[Math.floor(Math.random() * unrelatedObjects.length)]} ${Math.floor(Math.random() * 100) + 1}`;
+  // If we've exhausted all objects, use a specific fallback
+  const specificFallbacks = [
+    "banana", "violin", "lighthouse", "cactus", "snowflake", 
+    "astronaut", "flamingo", "volcano", "submarine", "tornado"
+  ];
+  return specificFallbacks[Math.floor(Math.random() * specificFallbacks.length)];
 };

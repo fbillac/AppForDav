@@ -48,24 +48,33 @@ Format the response as a JSON object with the following structure:
 }
 The activity must be something that can be physically acted out. 
 
-IMPORTANT: The components must be SPECIFIC, TANGIBLE objects, roles, or locations that would logically be used in the activity.
+IMPORTANT: Include a variety of activities, including everyday tasks, sports, professions, and also STUNTS or DARING ACTS that would be fun to act out (like "Walking a tightrope", "Performing a skateboard trick", "Doing a backflip", etc.).
+
+CRITICAL: The components must be SPECIFIC, TANGIBLE objects, roles, or locations that would logically be used in the activity.
 - Use specific physical objects/tools (e.g., "hammer" not "tool", "chef's knife" not "equipment")
 - Use specific rooms (e.g., "kitchen" not "room", "operating theater" not "medical facility")
 - Use specific people or occupations (e.g., "surgeon" not "medical professional", "quarterback" not "player")
 
-AVOID vague or categorical terms like "equipment", "supplies", "materials", "tools", "items", etc.
+STRICTLY FORBIDDEN: Never use generic or categorical terms like:
+- "equipment", "supplies", "materials", "tools", "items", "accessories"
+- "device", "apparatus", "implement", "utensil", "gadget", "appliance"
+- "gear", "kit", "set", "stuff", "things", "objects"
+- "professional", "worker", "person", "individual", "specialist"
+- "location", "place", "area", "space", "room", "facility"
 
 Examples of good components:
 - For "Sanding wood": "sandpaper", "wooden plank", "workbench"
 - For "Performing surgery": "scalpel", "surgical gloves", "operating theater"
 - For "Baking cookies": "mixing bowl", "cookie sheet", "oven"
+- For "Walking a tightrope": "balance pole", "safety net", "high wire"
+- For "Performing a skateboard trick": "skateboard", "ramp", "helmet"
 
 IMPORTANT: Each component must be unique - do not repeat any component.`;
 
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates charades activities." },
+          { role: "system", content: "You are a helpful assistant that generates charades activities with specific, non-generic components." },
           { role: "user", content: prompt }
         ],
         max_tokens: 150,
@@ -104,6 +113,13 @@ Rules:
 9. IMPORTANT: Do not use any words that have been used before
 10. CRITICAL: The replacement should create HUMOR through INCONGRUITY with the original
 
+STRICTLY FORBIDDEN: Never use generic or categorical terms like:
+- "equipment", "supplies", "materials", "tools", "items", "accessories"
+- "device", "apparatus", "implement", "utensil", "gadget", "appliance"
+- "gear", "kit", "set", "stuff", "things", "objects"
+- "professional", "worker", "person", "individual", "specialist"
+- "location", "place", "area", "space", "room", "facility"
+
 SPECIAL VARIATIONS:
 - For people/roles (like "chef", "doctor", "player"), you can use a celebrity or fictional character name 20% of the time
 - For objects (like "hammer", "ball", "chair"), you can use "made of [material]" 20% of the time where [material] is an unexpected material
@@ -124,7 +140,7 @@ Format the response as a JSON array with the following structure:
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates interesting word replacements for charades." },
+          { role: "system", content: "You are a helpful assistant that generates interesting, specific word replacements for charades. Never use generic terms." },
           { role: "user", content: prompt }
         ],
         max_tokens: 200,
@@ -161,6 +177,13 @@ Rules:
 6. It should be appropriate for all ages
 7. It should be a single word or short phrase (no "and")
 
+STRICTLY FORBIDDEN: Never use generic or categorical terms like:
+- "equipment", "supplies", "materials", "tools", "items", "accessories"
+- "device", "apparatus", "implement", "utensil", "gadget", "appliance"
+- "gear", "kit", "set", "stuff", "things", "objects"
+- "professional", "worker", "person", "individual", "specialist"
+- "location", "place", "area", "space", "room", "facility"
+
 Examples of good components:
 - For "Baking cookies": "mixing bowl", "cookie sheet", "oven", "spatula", "flour", "chef"
 - For "Playing basketball": "basketball", "hoop", "court", "referee", "jersey", "scoreboard"
@@ -171,7 +194,7 @@ IMPORTANT: Return ONLY the new component as a single string, with no additional 
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates charades components." },
+          { role: "system", content: "You are a helpful assistant that generates specific, non-generic charades components." },
           { role: "user", content: prompt }
         ],
         max_tokens: 50,
@@ -183,10 +206,61 @@ IMPORTANT: Return ONLY the new component as a single string, with no additional 
         .replace(/^["'](.*)["']$/, '$1') // Remove quotes if present
         .replace(/^\s*-\s*/, ''); // Remove leading dash if present
       
+      // Check if the component is generic
+      if (isGenericTerm(newComponent)) {
+        // Try again with a more specific prompt
+        return await this.generateSpecificComponent(activityVerb, existingComponents, usedWords);
+      }
+      
       return newComponent;
     } catch (error) {
       console.error("Error generating single component:", error);
       throw error;
+    }
+  }
+  
+  // Additional method to generate a more specific component if the first attempt was too generic
+  async generateSpecificComponent(activityVerb, existingComponents, usedWords) {
+    try {
+      const prompt = `Generate a HIGHLY SPECIFIC component for the activity: "${activityVerb}"
+
+Current components: ${existingComponents.join(", ")}
+
+I need a VERY SPECIFIC, NON-GENERIC component. For example:
+- Instead of "tool" → use "hammer", "screwdriver", or "wrench"
+- Instead of "equipment" → use "helmet", "knee pads", or "gloves"
+- Instead of "supplies" → use "paint brush", "canvas", or "easel"
+
+The component must be a CONCRETE, TANGIBLE object or person that would be used in ${activityVerb}.
+
+IMPORTANT: Return ONLY the specific component as a single word or short phrase.`;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a helpful assistant that generates extremely specific, concrete charades components." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 50,
+        temperature: 0.5, // Lower temperature for more focused results
+      });
+
+      // Extract and clean the response
+      const specificComponent = response.choices[0].message.content.trim()
+        .replace(/^["'](.*)["']$/, '$1') // Remove quotes if present
+        .replace(/^\s*-\s*/, ''); // Remove leading dash if present
+      
+      // If still generic, use a specific fallback
+      if (isGenericTerm(specificComponent)) {
+        // Generate activity-specific fallback
+        return generateActivitySpecificFallback(activityVerb);
+      }
+      
+      return specificComponent;
+    } catch (error) {
+      console.error("Error generating specific component:", error);
+      // Generate activity-specific fallback
+      return generateActivitySpecificFallback(activityVerb);
     }
   }
 
@@ -201,12 +275,17 @@ IMPORTANT: Return ONLY the new component as a single string, with no additional 
 
 Create a simpler version with 2-3 components that are easier to understand and act out.
 
-IMPORTANT: The components must be SPECIFIC, TANGIBLE objects, roles, or locations that would logically be used in the activity.
+CRITICAL: The components must be SPECIFIC, TANGIBLE objects, roles, or locations that would logically be used in the activity.
 - Use specific physical objects/tools (e.g., "hammer" not "tool", "chef's knife" not "equipment")
 - Use specific rooms (e.g., "kitchen" not "room", "operating theater" not "medical facility")
 - Use specific people or occupations (e.g., "surgeon" not "medical professional", "quarterback" not "player")
 
-AVOID vague or categorical terms like "equipment", "supplies", "materials", "tools", "items", etc.
+STRICTLY FORBIDDEN: Never use generic or categorical terms like:
+- "equipment", "supplies", "materials", "tools", "items", "accessories"
+- "device", "apparatus", "implement", "utensil", "gadget", "appliance"
+- "gear", "kit", "set", "stuff", "things", "objects"
+- "professional", "worker", "person", "individual", "specialist"
+- "location", "place", "area", "space", "room", "facility"
 
 Examples of good components:
 - For "Sanding wood": "sandpaper", "wooden plank", "workbench"
@@ -224,7 +303,7 @@ Format the response as a JSON object with the following structure:
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful assistant that simplifies charades activities." },
+          { role: "system", content: "You are a helpful assistant that simplifies charades activities using specific, non-generic components." },
           { role: "user", content: prompt }
         ],
         max_tokens: 150,
@@ -233,6 +312,14 @@ Format the response as a JSON object with the following structure:
 
       const text = response.choices[0].message.content.trim();
       const parsed = JSON.parse(text);
+      
+      // Check if any components are generic
+      const hasGenericComponents = parsed.components.some(component => isGenericTerm(component));
+      
+      if (hasGenericComponents) {
+        // Try again with a more specific prompt
+        return await this.generateSpecificSimplification(activity);
+      }
       
       return {
         activityVerb: parsed.activityVerb,
@@ -243,6 +330,178 @@ Format the response as a JSON object with the following structure:
       throw error;
     }
   }
+  
+  // Additional method to generate a more specific simplification if the first attempt had generic components
+  async generateSpecificSimplification(activity) {
+    try {
+      const prompt = `Simplify this activity for a charades game using ONLY HIGHLY SPECIFIC components:
+"${activity.activityVerb}" with components: ${activity.selectedComponents.join(", ")}
+
+Create a simpler version with 2-3 components that are CONCRETE and SPECIFIC.
+
+I need VERY SPECIFIC, NON-GENERIC components. For example:
+- Instead of "tool" → use "hammer", "screwdriver", or "wrench"
+- Instead of "equipment" → use "helmet", "knee pads", or "gloves"
+- Instead of "supplies" → use "paint brush", "canvas", or "easel"
+
+Each component must be a CONCRETE, TANGIBLE object or person that would be used in the activity.
+
+Format the response as a JSON object with the following structure:
+{
+  "activityVerb": "The simplified activity",
+  "components": ["specific component1", "specific component2", "specific component3"]
+}`;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "You are a helpful assistant that simplifies charades activities using extremely specific, concrete components." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 150,
+        temperature: 0.5,
+      });
+
+      const text = response.choices[0].message.content.trim();
+      const parsed = JSON.parse(text);
+      
+      // Replace any remaining generic components with specific ones
+      const specificComponents = parsed.components.map(component => {
+        if (isGenericTerm(component)) {
+          return generateActivitySpecificFallback(parsed.activityVerb);
+        }
+        return component;
+      });
+      
+      return {
+        activityVerb: parsed.activityVerb,
+        selectedComponents: specificComponents
+      };
+    } catch (error) {
+      console.error("Error generating specific simplification:", error);
+      
+      // Create a fallback simplification
+      const specificComponents = [];
+      for (let i = 0; i < 3; i++) {
+        specificComponents.push(generateActivitySpecificFallback(activity.activityVerb));
+      }
+      
+      return {
+        activityVerb: activity.activityVerb,
+        selectedComponents: specificComponents.slice(0, 3)
+      };
+    }
+  }
+}
+
+// Helper function to check if a term is generic
+function isGenericTerm(term) {
+  if (!term || typeof term !== 'string') return true;
+  
+  const genericTerms = [
+    "equipment", "supplies", "materials", "tools", "items", "accessories",
+    "device", "apparatus", "implement", "utensil", "gadget", "appliance",
+    "gear", "kit", "set", "stuff", "things", "objects", "prop", "instrument",
+    "professional", "worker", "person", "individual", "specialist", "expert",
+    "location", "place", "area", "space", "room", "facility", "venue",
+    "component", "part", "piece", "element", "unit", "module", "section",
+    "tool", "supply", "material", "item", "accessory", "device", "apparatus",
+    "implement", "utensil", "gadget", "appliance", "gear", "kit", "set"
+  ];
+  
+  // Check if the term contains any generic terms
+  const lowerTerm = term.toLowerCase();
+  return genericTerms.some(genericTerm => {
+    // Check for exact match or if it's the main part of the term
+    return lowerTerm === genericTerm || 
+           lowerTerm.startsWith(genericTerm + " ") || 
+           lowerTerm.endsWith(" " + genericTerm) ||
+           lowerTerm.includes(" " + genericTerm + " ");
+  });
+}
+
+// Helper function to generate activity-specific fallback components
+function generateActivitySpecificFallback(activity) {
+  const activityLower = activity.toLowerCase();
+  
+  // Cooking/baking related
+  if (activityLower.includes("cook") || activityLower.includes("bak") || activityLower.includes("food")) {
+    const cookingItems = ["wooden spoon", "chef's knife", "measuring cup", "mixing bowl", "whisk", "spatula", "oven mitt", "cutting board", "rolling pin", "frying pan"];
+    return cookingItems[Math.floor(Math.random() * cookingItems.length)];
+  }
+  
+  // Sports related
+  if (activityLower.includes("play") || activityLower.includes("sport") || activityLower.includes("game") || 
+      activityLower.includes("ball") || activityLower.includes("tennis") || activityLower.includes("basketball")) {
+    const sportsItems = ["basketball", "tennis racket", "baseball bat", "hockey stick", "football helmet", "soccer cleats", "golf club", "volleyball net", "referee whistle", "scoreboard"];
+    return sportsItems[Math.floor(Math.random() * sportsItems.length)];
+  }
+  
+  // Construction/building related
+  if (activityLower.includes("build") || activityLower.includes("construct") || activityLower.includes("fix") || 
+      activityLower.includes("repair") || activityLower.includes("install")) {
+    const buildingItems = ["hammer", "screwdriver", "power drill", "measuring tape", "level", "nail", "screw", "wrench", "pliers", "saw"];
+    return buildingItems[Math.floor(Math.random() * buildingItems.length)];
+  }
+  
+  // Cleaning related
+  if (activityLower.includes("clean") || activityLower.includes("wash") || activityLower.includes("scrub") || 
+      activityLower.includes("dust") || activityLower.includes("vacuum")) {
+    const cleaningItems = ["sponge", "mop", "broom", "vacuum cleaner", "duster", "spray bottle", "rubber gloves", "scrub brush", "paper towel", "trash bag"];
+    return cleaningItems[Math.floor(Math.random() * cleaningItems.length)];
+  }
+  
+  // Art related
+  if (activityLower.includes("paint") || activityLower.includes("draw") || activityLower.includes("sketch") || 
+      activityLower.includes("art") || activityLower.includes("craft")) {
+    const artItems = ["paintbrush", "canvas", "easel", "palette", "pencil", "sketchbook", "charcoal", "watercolor", "clay", "sculpting tool"];
+    return artItems[Math.floor(Math.random() * artItems.length)];
+  }
+  
+  // Music related
+  if (activityLower.includes("music") || activityLower.includes("play") || activityLower.includes("sing") || 
+      activityLower.includes("guitar") || activityLower.includes("piano")) {
+    const musicItems = ["guitar", "piano", "drum", "microphone", "sheet music", "violin", "trumpet", "flute", "saxophone", "conductor's baton"];
+    return musicItems[Math.floor(Math.random() * musicItems.length)];
+  }
+  
+  // Stunt related
+  if (activityLower.includes("stunt") || activityLower.includes("trick") || activityLower.includes("jump") || 
+      activityLower.includes("flip") || activityLower.includes("perform") || activityLower.includes("acrobat")) {
+    const stuntItems = ["safety harness", "crash mat", "helmet", "knee pads", "trampoline", "balance beam", "tightrope", "skateboard", "ramp", "protective gloves"];
+    return stuntItems[Math.floor(Math.random() * stuntItems.length)];
+  }
+  
+  // Outdoor/nature related
+  if (activityLower.includes("hike") || activityLower.includes("camp") || activityLower.includes("fish") || 
+      activityLower.includes("hunt") || activityLower.includes("garden")) {
+    const outdoorItems = ["hiking boots", "tent", "fishing rod", "compass", "backpack", "binoculars", "water bottle", "sleeping bag", "flashlight", "trowel"];
+    return outdoorItems[Math.floor(Math.random() * outdoorItems.length)];
+  }
+  
+  // Technology related
+  if (activityLower.includes("computer") || activityLower.includes("program") || activityLower.includes("code") || 
+      activityLower.includes("tech") || activityLower.includes("game")) {
+    const techItems = ["keyboard", "mouse", "monitor", "headphones", "laptop", "smartphone", "game controller", "webcam", "microphone", "graphics tablet"];
+    return techItems[Math.floor(Math.random() * techItems.length)];
+  }
+  
+  // Medical related
+  if (activityLower.includes("doctor") || activityLower.includes("nurse") || activityLower.includes("medic") || 
+      activityLower.includes("hospital") || activityLower.includes("surgery")) {
+    const medicalItems = ["stethoscope", "syringe", "bandage", "surgical mask", "scalpel", "thermometer", "blood pressure cuff", "surgical gloves", "prescription pad", "tongue depressor"];
+    return medicalItems[Math.floor(Math.random() * medicalItems.length)];
+  }
+  
+  // Default - general specific items
+  const defaultItems = [
+    "coffee mug", "wristwatch", "sunglasses", "umbrella", "wallet", "backpack", 
+    "notebook", "pencil", "scissors", "tape measure", "flashlight", "camera", 
+    "bicycle", "helmet", "tennis racket", "baseball bat", "paintbrush", "hammer",
+    "screwdriver", "wrench", "cooking pot", "frying pan", "chef's knife", "wooden spoon"
+  ];
+  
+  return defaultItems[Math.floor(Math.random() * defaultItems.length)];
 }
 
 // Create and export a singleton instance

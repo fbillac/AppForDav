@@ -1,7 +1,117 @@
 import openAIService from './openaiService';
 import { checkActivityExistsUnified, addActivityUnified } from './repetitionPrevention';
 
-// Local fallback data for when OpenAI is not available
+// Helper function to check if a term is generic
+function isGenericTerm(term) {
+  if (!term || typeof term !== 'string') return true;
+  
+  const genericTerms = [
+    "equipment", "supplies", "materials", "tools", "items", "accessories",
+    "device", "apparatus", "implement", "utensil", "gadget", "appliance",
+    "gear", "kit", "set", "stuff", "things", "objects", "prop", "instrument",
+    "professional", "worker", "person", "individual", "specialist", "expert",
+    "location", "place", "area", "space", "room", "facility", "venue",
+    "component", "part", "piece", "element", "unit", "module", "section",
+    "tool", "supply", "material", "item", "accessory", "device", "apparatus",
+    "implement", "utensil", "gadget", "appliance", "gear", "kit", "set"
+  ];
+  
+  // Check if the term contains any generic terms
+  const lowerTerm = term.toLowerCase();
+  return genericTerms.some(genericTerm => {
+    // Check for exact match or if it's the main part of the term
+    return lowerTerm === genericTerm || 
+           lowerTerm.startsWith(genericTerm + " ") || 
+           lowerTerm.endsWith(" " + genericTerm) ||
+           lowerTerm.includes(" " + genericTerm + " ");
+  });
+}
+
+// Helper function to generate activity-specific fallback components
+function generateActivitySpecificFallback(activity) {
+  const activityLower = activity.toLowerCase();
+  
+  // Cooking/baking related
+  if (activityLower.includes("cook") || activityLower.includes("bak") || activityLower.includes("food")) {
+    const cookingItems = ["wooden spoon", "chef's knife", "measuring cup", "mixing bowl", "whisk", "spatula", "oven mitt", "cutting board", "rolling pin", "frying pan"];
+    return cookingItems[Math.floor(Math.random() * cookingItems.length)];
+  }
+  
+  // Sports related
+  if (activityLower.includes("play") || activityLower.includes("sport") || activityLower.includes("game") || 
+      activityLower.includes("ball") || activityLower.includes("tennis") || activityLower.includes("basketball")) {
+    const sportsItems = ["basketball", "tennis racket", "baseball bat", "hockey stick", "football helmet", "soccer cleats", "golf club", "volleyball net", "referee whistle", "scoreboard"];
+    return sportsItems[Math.floor(Math.random() * sportsItems.length)];
+  }
+  
+  // Construction/building related
+  if (activityLower.includes("build") || activityLower.includes("construct") || activityLower.includes("fix") || 
+      activityLower.includes("repair") || activityLower.includes("install")) {
+    const buildingItems = ["hammer", "screwdriver", "power drill", "measuring tape", "level", "nail", "screw", "wrench", "pliers", "saw"];
+    return buildingItems[Math.floor(Math.random() * buildingItems.length)];
+  }
+  
+  // Cleaning related
+  if (activityLower.includes("clean") || activityLower.includes("wash") || activityLower.includes("scrub") || 
+      activityLower.includes("dust") || activityLower.includes("vacuum")) {
+    const cleaningItems = ["sponge", "mop", "broom", "vacuum cleaner", "duster", "spray bottle", "rubber gloves", "scrub brush", "paper towel", "trash bag"];
+    return cleaningItems[Math.floor(Math.random() * cleaningItems.length)];
+  }
+  
+  // Art related
+  if (activityLower.includes("paint") || activityLower.includes("draw") || activityLower.includes("sketch") || 
+      activityLower.includes("art") || activityLower.includes("craft")) {
+    const artItems = ["paintbrush", "canvas", "easel", "palette", "pencil", "sketchbook", "charcoal", "watercolor", "clay", "sculpting tool"];
+    return artItems[Math.floor(Math.random() * artItems.length)];
+  }
+  
+  // Music related
+  if (activityLower.includes("music") || activityLower.includes("play") || activityLower.includes("sing") || 
+      activityLower.includes("guitar") || activityLower.includes("piano")) {
+    const musicItems = ["guitar", "piano", "drum", "microphone", "sheet music", "violin", "trumpet", "flute", "saxophone", "conductor's baton"];
+    return musicItems[Math.floor(Math.random() * musicItems.length)];
+  }
+  
+  // Stunt related
+  if (activityLower.includes("stunt") || activityLower.includes("trick") || activityLower.includes("jump") || 
+      activityLower.includes("flip") || activityLower.includes("perform") || activityLower.includes("acrobat")) {
+    const stuntItems = ["safety harness", "crash mat", "helmet", "knee pads", "trampoline", "balance beam", "tightrope", "skateboard", "ramp", "protective gloves"];
+    return stuntItems[Math.floor(Math.random() * stuntItems.length)];
+  }
+  
+  // Outdoor/nature related
+  if (activityLower.includes("hike") || activityLower.includes("camp") || activityLower.includes("fish") || 
+      activityLower.includes("hunt") || activityLower.includes("garden")) {
+    const outdoorItems = ["hiking boots", "tent", "fishing rod", "compass", "backpack", "binoculars", "water bottle", "sleeping bag", "flashlight", "trowel"];
+    return outdoorItems[Math.floor(Math.random() * outdoorItems.length)];
+  }
+  
+  // Technology related
+  if (activityLower.includes("computer") || activityLower.includes("program") || activityLower.includes("code") || 
+      activityLower.includes("tech") || activityLower.includes("game")) {
+    const techItems = ["keyboard", "mouse", "monitor", "headphones", "laptop", "smartphone", "game controller", "webcam", "microphone", "graphics tablet"];
+    return techItems[Math.floor(Math.random() * techItems.length)];
+  }
+  
+  // Medical related
+  if (activityLower.includes("doctor") || activityLower.includes("nurse") || activityLower.includes("medic") || 
+      activityLower.includes("hospital") || activityLower.includes("surgery")) {
+    const medicalItems = ["stethoscope", "syringe", "bandage", "surgical mask", "scalpel", "thermometer", "blood pressure cuff", "surgical gloves", "prescription pad", "tongue depressor"];
+    return medicalItems[Math.floor(Math.random() * medicalItems.length)];
+  }
+  
+  // Default - general specific items
+  const defaultItems = [
+    "coffee mug", "wristwatch", "sunglasses", "umbrella", "wallet", "backpack", 
+    "notebook", "pencil", "scissors", "tape measure", "flashlight", "camera", 
+    "bicycle", "helmet", "tennis racket", "baseball bat", "paintbrush", "hammer",
+    "screwdriver", "wrench", "cooking pot", "frying pan", "chef's knife", "wooden spoon"
+  ];
+  
+  return defaultItems[Math.floor(Math.random() * defaultItems.length)];
+}
+
+// Local fallback data for when OpenAI is not available - with specific components only
 const fallbackActivities = [
   {
     activityVerb: "Baking cookies",
@@ -83,6 +193,67 @@ const fallbackActivities = [
   {
     activityVerb: "Mowing the lawn",
     components: ["lawn mower", "grass", "yard", "gas can"]
+  },
+  // Adding stunts and daring acts
+  {
+    activityVerb: "Walking a tightrope",
+    components: ["balance pole", "safety net", "high wire"]
+  },
+  {
+    activityVerb: "Performing a skateboard trick",
+    components: ["skateboard", "ramp", "helmet", "knee pads"]
+  },
+  {
+    activityVerb: "Doing a backflip",
+    components: ["gymnastics mat", "spotter", "trampoline"]
+  },
+  {
+    activityVerb: "Rock climbing",
+    components: ["climbing rope", "carabiner", "chalk bag", "climbing shoes"]
+  },
+  {
+    activityVerb: "Bungee jumping",
+    components: ["bungee cord", "harness", "platform", "helmet"]
+  },
+  {
+    activityVerb: "Skydiving",
+    components: ["parachute", "airplane", "altimeter", "goggles"]
+  },
+  {
+    activityVerb: "Surfing a big wave",
+    components: ["surfboard", "wetsuit", "ocean wave", "beach"]
+  },
+  {
+    activityVerb: "Performing a magic trick",
+    components: ["magic wand", "top hat", "rabbit", "playing cards"]
+  },
+  {
+    activityVerb: "Riding a mechanical bull",
+    components: ["mechanical bull", "rodeo arena", "timer", "safety mat"]
+  },
+  {
+    activityVerb: "Juggling flaming torches",
+    components: ["torches", "fire extinguisher", "juggling gloves", "safety zone"]
+  },
+  {
+    activityVerb: "Performing a sword swallowing act",
+    components: ["sword", "stage", "audience", "spotlight"]
+  },
+  {
+    activityVerb: "Walking on hot coals",
+    components: ["hot coals", "fire pit", "water bucket", "bare feet"]
+  },
+  {
+    activityVerb: "Escaping from handcuffs",
+    components: ["handcuffs", "lock pick", "timer", "escape artist"]
+  },
+  {
+    activityVerb: "Performing on a flying trapeze",
+    components: ["trapeze bar", "safety net", "circus tent", "spotter"]
+  },
+  {
+    activityVerb: "Racing a motorcycle",
+    components: ["motorcycle", "racing track", "helmet", "finish line"]
   }
 ];
 
@@ -102,6 +273,45 @@ export const generateStatement = async (numComponents = 3, usedWords) => {
           throw new Error("Invalid activity format from OpenAI");
         }
         
+        // Check if any components are generic
+        const hasGenericComponents = activity.components.some(component => isGenericTerm(component));
+        
+        if (hasGenericComponents) {
+          console.log("Generic components detected, regenerating...");
+          // Try again up to 3 times
+          let attempts = 0;
+          const maxGenericAttempts = 3;
+          
+          while (hasGenericComponents && attempts < maxGenericAttempts) {
+            activity = await openAIService.generateActivity(numComponents);
+            
+            // Validate the new activity
+            if (!activity || !activity.activityVerb || !activity.components || 
+                !Array.isArray(activity.components) || activity.components.length !== numComponents) {
+              break;
+            }
+            
+            // Check if any components are still generic
+            const stillHasGenericComponents = activity.components.some(component => isGenericTerm(component));
+            
+            if (!stillHasGenericComponents) {
+              break;
+            }
+            
+            attempts++;
+          }
+          
+          // If we still have generic components, replace them with specific ones
+          if (activity.components.some(component => isGenericTerm(component))) {
+            activity.components = activity.components.map(component => {
+              if (isGenericTerm(component)) {
+                return generateActivitySpecificFallback(activity.activityVerb);
+              }
+              return component;
+            });
+          }
+        }
+        
         // Check if this activity already exists in our repetition prevention system
         let activityExists = await checkActivityExistsUnified(activity.activityVerb);
         
@@ -119,6 +329,14 @@ export const generateStatement = async (numComponents = 3, usedWords) => {
             console.error("Invalid activity format from OpenAI:", activity);
             throw new Error("Invalid activity format from OpenAI");
           }
+          
+          // Replace any generic components
+          activity.components = activity.components.map(component => {
+            if (isGenericTerm(component)) {
+              return generateActivitySpecificFallback(activity.activityVerb);
+            }
+            return component;
+          });
           
           activityExists = await checkActivityExistsUnified(activity.activityVerb);
           attempts++;
@@ -224,7 +442,14 @@ const generateFallbackStatement = async (numComponents, usedWords) => {
       "Brushing teeth", "Washing hair", "Tying shoelaces", "Folding laundry",
       "Cooking pasta", "Grilling burgers", "Chopping vegetables", "Setting a table",
       "Playing piano", "Strumming guitar", "Drumming", "Conducting orchestra",
-      "Driving a car", "Riding a bike", "Skating", "Swimming laps"
+      "Driving a car", "Riding a bike", "Skating", "Swimming laps",
+      // Adding stunts and daring acts to the fallback list
+      "Walking a tightrope", "Performing a skateboard trick", "Doing a backflip",
+      "Rock climbing", "Bungee jumping", "Skydiving", "Surfing a big wave",
+      "Performing a magic trick", "Riding a mechanical bull", "Juggling flaming torches",
+      "Performing a sword swallowing act", "Walking on hot coals", "Escaping from handcuffs",
+      "Performing on a flying trapeze", "Racing a motorcycle", "Snowboarding down a mountain",
+      "Performing a slam dunk", "Riding a unicycle", "Walking on stilts", "Fire breathing"
     ];
     
     // Find an activity that doesn't exist in our system
@@ -238,8 +463,14 @@ const generateFallbackStatement = async (numComponents, usedWords) => {
     
     // If all activities exist, create a unique one with a descriptive name
     if (activityExists) {
-      const baseActivities = ["Playing", "Building", "Creating", "Making", "Performing"];
-      const objects = ["game", "project", "artwork", "craft", "activity"];
+      const baseActivities = [
+        "Playing", "Building", "Creating", "Making", "Performing", 
+        "Attempting", "Executing", "Demonstrating", "Showcasing", "Mastering"
+      ];
+      const objects = [
+        "game", "project", "artwork", "craft", "activity", 
+        "stunt", "trick", "feat", "maneuver", "skill"
+      ];
       
       const baseActivity = baseActivities[Math.floor(Math.random() * baseActivities.length)];
       const object = objects[Math.floor(Math.random() * objects.length)];
@@ -284,8 +515,8 @@ const generateUniqueComponent = async (activityVerb, existingComponents) => {
         new Set()
       );
       
-      // Check if the component is valid
-      if (newComponent && typeof newComponent === 'string' && newComponent.trim().length > 0) {
+      // Check if the component is valid and not generic
+      if (newComponent && typeof newComponent === 'string' && newComponent.trim().length > 0 && !isGenericTerm(newComponent)) {
         return newComponent.trim();
       }
     } catch (error) {
@@ -300,20 +531,13 @@ const generateUniqueComponent = async (activityVerb, existingComponents) => {
     
     // Generate a single unique component
     const components = await generateUniqueComponents(activityVerb, 1, new Set(existingComponents));
-    if (components && components.length > 0) {
+    if (components && components.length > 0 && !isGenericTerm(components[0])) {
       return components[0];
     }
   } catch (error) {
     console.error("Error generating component locally:", error);
   }
   
-  // Last resort fallback
-  const genericComponents = [
-    "tool", "equipment", "accessory", "device", "instrument", "apparatus",
-    "implement", "utensil", "gadget", "appliance", "machine", "mechanism"
-  ];
-  
-  // Add a number to make it unique
-  const randomComponent = genericComponents[Math.floor(Math.random() * genericComponents.length)];
-  return `${randomComponent} ${Math.floor(Math.random() * 100) + 1}`;
+  // Last resort fallback - use activity-specific components
+  return generateActivitySpecificFallback(activityVerb);
 };
