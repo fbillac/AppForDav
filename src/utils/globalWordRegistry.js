@@ -338,3 +338,39 @@ export const ensureUniqueWord = async (baseWord) => {
   await addWord(normalizedWord);
   return baseWord;
 };
+
+// Add all individual words from a phrase to prevent partial repeats
+export const addAllWordsFromPhrase = async (phrase) => {
+  if (!phrase || typeof phrase !== 'string') return;
+  
+  // Normalize and split the phrase
+  const words = phrase.trim().toLowerCase().split(/\s+/);
+  
+  // Add each significant word
+  for (const word of words) {
+    if (word.length > 3) { // Only add significant words
+      await addWord(word);
+    }
+  }
+};
+
+// Get all words from the registry
+export const getAllWords = () => {
+  return Array.from(memoryCache);
+};
+
+// Import words from an external source
+export const importWords = async (words) => {
+  if (!words || !Array.isArray(words)) return 0;
+  
+  let importedCount = 0;
+  
+  for (const word of words) {
+    if (word && typeof word === 'string') {
+      const added = await addWord(word);
+      if (added) importedCount++;
+    }
+  }
+  
+  return importedCount;
+};

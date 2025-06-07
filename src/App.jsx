@@ -3,9 +3,10 @@ import './App.css';
 import ApiKeyInput from './components/ApiKeyInput';
 import { replaceWords, replaceIndividualWord } from './utils/wordReplacer';
 import openAIService from './utils/openaiService';
-import { initializeRegistry } from './utils/globalWordRegistry';
+import { initializeRegistry, addWord, addAllWordsFromPhrase, getWordCount } from './utils/globalWordRegistry';
 import { initializeRepetitionPrevention } from './utils/repetitionPrevention';
 import { generateStatement } from './utils/statementGenerator';
+import { initializePersistentStorage, saveWordsToStorage, addMultipleWordsToStorage, getPersistentStorageStats } from './utils/persistentStorage';
 import DeveloperMode from './components/DeveloperMode';
 import Timer from './components/Timer';
 
@@ -22,13 +23,15 @@ function App() {
   });
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [registryInitialized, setRegistryInitialized] = useState(false);
+  const [storageInitialized, setStorageInitialized] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [numComponents, setNumComponents] = useState(3); // Default to 3 components
   const [developerMode, setDeveloperMode] = useState(false);
   const [uiConfig, setUiConfig] = useState(null);
   const [adminMode, setAdminMode] = useState(false);
+  const [storageStats, setStorageStats] = useState(null);
 
-  // Initialize the word registry and repetition prevention system
+  // Initialize the word registry, persistent storage, and repetition prevention system
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -37,12 +40,22 @@ function App() {
         console.log("Word registry initialized");
         setRegistryInitialized(true);
         
+        // Then initialize persistent storage
+        const storageInit = await initializePersistentStorage();
+        console.log("Persistent storage initialized:", storageInit);
+        setStorageInitialized(storageInit);
+        
         // Then initialize repetition prevention
         await initializeRepetitionPrevention();
         console.log("Repetition prevention initialized");
+        
+        // Get storage stats
+        const stats = await getPersistentStorageStats();
+        setStorageStats(stats);
+        console.log("Storage stats:", stats);
       } catch (error) {
-        console.error("Error initializing word registry:", error);
-        setError("Failed to initialize word registry. Please refresh the page.");
+        console.error("Error initializing systems:", error);
+        setError("Failed to initialize word registry or storage. Please refresh the page.");
       }
     };
     
@@ -213,6 +226,11 @@ function App() {
       return;
     }
     
+    if (!storageInitialized) {
+      setError("Persistent storage is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
@@ -245,6 +263,8 @@ function App() {
       newUsedWords.add(newStatement.activityVerb.toLowerCase());
       
       // Add individual words from activity to prevent partial repeats
+      await addAllWordsFromPhrase(newStatement.activityVerb);
+      
       const activityWords = newStatement.activityVerb.toLowerCase().split(/\s+/);
       for (const word of activityWords) {
         if (word.length > 3) { // Only add significant words
@@ -257,6 +277,8 @@ function App() {
         newUsedWords.add(component.toLowerCase());
         
         // Add individual words to prevent partial repeats
+        await addAllWordsFromPhrase(component);
+        
         const componentWords = component.toLowerCase().split(/\s+/);
         for (const word of componentWords) {
           if (word.length > 3) { // Only add significant words
@@ -270,6 +292,8 @@ function App() {
         newUsedWords.add(replacement.replacement.toLowerCase());
         
         // Add individual words to prevent partial repeats
+        await addAllWordsFromPhrase(replacement.replacement);
+        
         const words = replacement.replacement.toLowerCase().split(/\s+/);
         for (const word of words) {
           if (word.length > 3) { // Only add significant words
@@ -280,9 +304,18 @@ function App() {
       
       setUsedWords(newUsedWords);
       
+      // Save all used words to persistent storage
+      await addMultipleWordsToStorage(Array.from(newUsedWords));
+      
+      // Update storage stats
+      const stats = await getPersistentStorageStats();
+      setStorageStats(stats);
+      
       console.log("Generated new activity:", newStatement.activityVerb);
       console.log("Components:", newStatement.selectedComponents);
       console.log("Replacements:", result.replacements);
+      console.log("Words in registry:", getWordCount());
+      console.log("Words in persistent storage:", stats.totalWords);
     } catch (error) {
       console.error("Error generating activity and replacements:", error);
       setError(`Error generating content: ${error.message}`);
@@ -295,6 +328,11 @@ function App() {
   const generateReplacements = async () => {
     if (!registryInitialized) {
       setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
+    if (!storageInitialized) {
+      setError("Persistent storage is still initializing. Please wait a moment and try again.");
       return;
     }
     
@@ -327,6 +365,8 @@ function App() {
         newUsedWords.add(replacement.replacement.toLowerCase());
         
         // Add individual words to prevent partial repeats
+        await addAllWordsFromPhrase(replacement.replacement);
+        
         const words = replacement.replacement.toLowerCase().split(/\s+/);
         for (const word of words) {
           if (word.length > 3) { // Only add significant words
@@ -335,6 +375,13 @@ function App() {
         }
       }
       setUsedWords(newUsedWords);
+      
+      // Save all used words to persistent storage
+      await addMultipleWordsToStorage(Array.from(newUsedWords));
+      
+      // Update storage stats
+      const stats = await getPersistentStorageStats();
+      setStorageStats(stats);
     } catch (error) {
       console.error("Error generating replacements:", error);
       setError(`Error generating replacements: ${error.message}`);
@@ -347,6 +394,11 @@ function App() {
   const replaceReplacement = async (index) => {
     if (!registryInitialized) {
       setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
+    if (!storageInitialized) {
+      setError("Persistent storage is still initializing. Please wait a moment and try again.");
       return;
     }
     
@@ -392,6 +444,8 @@ function App() {
       newUsedWords.add(newReplacement.toLowerCase());
       
       // Add individual words to prevent partial repeats
+      await addAllWordsFromPhrase(newReplacement);
+      
       const words = newReplacement.toLowerCase().split(/\s+/);
       for (const word of words) {
         if (word.length > 3) { // Only add significant words
@@ -400,6 +454,13 @@ function App() {
       }
       
       setUsedWords(newUsedWords);
+      
+      // Save all used words to persistent storage
+      await addMultipleWordsToStorage(Array.from(newUsedWords));
+      
+      // Update storage stats
+      const stats = await getPersistentStorageStats();
+      setStorageStats(stats);
     } catch (error) {
       console.error("Error replacing replacement:", error);
       setError(`Error replacing replacement: ${error.message}`);
@@ -412,6 +473,11 @@ function App() {
   const simplifyActivity = async () => {
     if (!registryInitialized) {
       setError("Word registry is still initializing. Please wait a moment and try again.");
+      return;
+    }
+    
+    if (!storageInitialized) {
+      setError("Persistent storage is still initializing. Please wait a moment and try again.");
       return;
     }
     
@@ -435,11 +501,38 @@ function App() {
       // Simplify the activity
       const simplifiedActivity = await openAIService.simplifyActivity(statement);
       
+      // Add the simplified activity to the registry
+      await addWord(simplifiedActivity.activityVerb);
+      
+      // Add individual words from the simplified activity
+      await addAllWordsFromPhrase(simplifiedActivity.activityVerb);
+      
       // Set the statement
       setStatement(simplifiedActivity);
       
       // Clear replacements
       setReplacements([]);
+      
+      // Update used words
+      const newUsedWords = new Set(usedWords);
+      newUsedWords.add(simplifiedActivity.activityVerb.toLowerCase());
+      
+      // Add individual words to prevent partial repeats
+      const activityWords = simplifiedActivity.activityVerb.toLowerCase().split(/\s+/);
+      for (const word of activityWords) {
+        if (word.length > 3) { // Only add significant words
+          newUsedWords.add(word);
+        }
+      }
+      
+      setUsedWords(newUsedWords);
+      
+      // Save all used words to persistent storage
+      await addMultipleWordsToStorage(Array.from(newUsedWords));
+      
+      // Update storage stats
+      const stats = await getPersistentStorageStats();
+      setStorageStats(stats);
     } catch (error) {
       console.error("Error simplifying activity:", error);
       setError(`Error simplifying activity: ${error.message}`);
@@ -466,7 +559,9 @@ function App() {
           replacements,
           apiStatus,
           numComponents,
-          registryInitialized
+          registryInitialized,
+          storageInitialized,
+          storageStats
         }}
         appActions={{
           generateActivityAndReplacements,
@@ -550,7 +645,7 @@ function App() {
                     <button 
                       className="generate-button"
                       onClick={generateActivityAndReplacements}
-                      disabled={isLoading || !isConnected || !registryInitialized}
+                      disabled={isLoading || !isConnected || !registryInitialized || !storageInitialized}
                       style={generateButton.style}
                     >
                       {isLoading ? 'Generating...' : generateButton.content}
@@ -563,7 +658,7 @@ function App() {
                     <button 
                       className="simplify-button"
                       onClick={simplifyActivity}
-                      disabled={isLoading || !statement || !isConnected || !registryInitialized}
+                      disabled={isLoading || !statement || !isConnected || !registryInitialized || !storageInitialized}
                       style={simplifyButton.style}
                     >
                       {simplifyButton.content}
@@ -678,7 +773,7 @@ function App() {
                             <button 
                               className="replace-button"
                               onClick={() => replaceReplacement(index)}
-                              disabled={isLoading || !isConnected || !registryInitialized}
+                              disabled={isLoading || !isConnected || !registryInitialized || !storageInitialized}
                               style={{
                                 backgroundColor: 'var(--accent-color)',
                                 color: 'white',
@@ -721,6 +816,11 @@ function App() {
           
           <footer className="app-footer">
             <p>The Things Generator - A word replacement tool for charades-like gameplay</p>
+            {adminMode && storageStats && (
+              <div className="storage-stats">
+                <small>Words in storage: {storageStats.totalWords}</small>
+              </div>
+            )}
           </footer>
         </div>
       );
@@ -782,7 +882,7 @@ function App() {
                 <button 
                   className="generate-button"
                   onClick={generateActivityAndReplacements}
-                  disabled={isLoading || !isConnected || !registryInitialized}
+                  disabled={isLoading || !isConnected || !registryInitialized || !storageInitialized}
                 >
                   {isLoading ? 'Generating...' : 'Generate Activity'}
                 </button>
@@ -792,7 +892,7 @@ function App() {
                 <button 
                   className="simplify-button"
                   onClick={simplifyActivity}
-                  disabled={isLoading || !statement || !isConnected || !registryInitialized}
+                  disabled={isLoading || !statement || !isConnected || !registryInitialized || !storageInitialized}
                 >
                   Simplify Activity
                 </button>
@@ -838,7 +938,7 @@ function App() {
                             <button 
                               className="replace-button"
                               onClick={() => replaceReplacement(index)}
-                              disabled={isLoading || !isConnected || !registryInitialized}
+                              disabled={isLoading || !isConnected || !registryInitialized || !storageInitialized}
                             >
                               Replace
                             </button>
@@ -863,6 +963,11 @@ function App() {
         
         <footer className="app-footer">
           <p>The Things Generator - A word replacement tool for charades-like gameplay</p>
+          {adminMode && storageStats && (
+            <div className="storage-stats">
+              <small>Words in storage: {storageStats.totalWords}</small>
+            </div>
+          )}
         </footer>
       </div>
     );
